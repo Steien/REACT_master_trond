@@ -39,6 +39,13 @@ mean_sd <- function(x) {
   sprintf("%.1f (%.1f)", mean(x), sd(x))
 }
 
+# For gram-verdier: ingen desimaler (DXA-presisjon tilsier ikke mer)
+mean_sd_g <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA_character_)
+  sprintf("%.0f (%.0f)", mean(x), sd(x))
+}
+
 n_pct <- function(x, total) {
   n <- sum(!is.na(x) & x)
   sprintf("%d (%.0f%%)", n, 100 * n / total)
@@ -202,9 +209,9 @@ dxa_s <- dxa_pre %>%
 tabell[["dxa_header"]] <- lag_rad(
   "DXA-m\u00e5linger (pre), gj.snitt (SD)", "", "", "")
 tabell[["lbm"]]      <- lag_rad("  Mager masse (LBM), g",
-  mean_sd(dxa_d$LBM),          mean_sd(dxa_s$LBM),          mean_sd(dxa_pre$LBM))
+  mean_sd_g(dxa_d$LBM),          mean_sd_g(dxa_s$LBM),          mean_sd_g(dxa_pre$LBM))
 tabell[["fett_g"]]   <- lag_rad("  Total fettmasse, g",
-  mean_sd(dxa_d$fat_total_g),   mean_sd(dxa_s$fat_total_g),  mean_sd(dxa_pre$fat_total_g))
+  mean_sd_g(dxa_d$fat_total_g),   mean_sd_g(dxa_s$fat_total_g),  mean_sd_g(dxa_pre$fat_total_g))
 tabell[["fett_pct"]] <- lag_rad("  Total fettprosent, %",
   mean_sd(dxa_d$fat_total_pct), mean_sd(dxa_s$fat_total_pct),mean_sd(dxa_pre$fat_total_pct))
 
