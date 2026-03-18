@@ -1,0 +1,165 @@
+# =============================================================================
+# 01_import.R
+# Leser inn og rydder rådata fra DXA_data.xlsx og REACT_data_til_studenter.xlsx
+# Output: data/processed/dxa_clean.rds
+#         data/processed/bakgrunn_clean.rds
+#         data/processed/antropometri_clean.rds
+#
+# Merk: REACT_data_til_studenter inneholder kun RCT-deltakere (fp 11-99).
+#       Kohorte-deltakere (200/300-serien) er ikke i Bakgrunn/Antropometri-arkene.
+# =============================================================================
+
+library(readxl)
+library(dplyr)
+
+# =============================================================================
+# DEL 1: DXA-data (din egen fil)
+# =============================================================================
+
+dxa_raw <- read_excel("data/raw/DXA_data.xlsx")
+
+# Håndter deltakere som var for brede for DXA-maskinen:
+# - type = "f": full scan, brukes direkte
+# - type = "r": høyre scan med DXA-estimert venstreside (speiling) — brukes
+# - type = "l": forkastes (maskinens speiling fra høyre scan er anbefalt metode)
+# Kilde: ISCD Official Positions 2023
+
+dxa_clean <- dxa_raw %>%
+  filter(!is.na(id)) %>%
+  filter(type != "l")
+
+# Gi kolonner ryddigere navn og sørg for riktige typer
+dxa_clean <- dxa_clean %>%
+  rename(
+    fat_android_pct = `fat_android_%`,
+    fat_total_pct   = `fat_total_%`
+  ) %>%
+  mutate(
+    id              = as.integer(id),
+    time            = factor(time, levels = c("pre", "post")),
+    sex             = factor(sex, levels = c("f", "m"), labels = c("Kvinne", "Mann")),
+    type            = factor(type, levels = c("f", "r"),
+                             labels = c("Full scan", "Høyre (speiling)")),
+    dxa_kg          = suppressWarnings(as.numeric(dxa_kg)),
+    seca_kg         = suppressWarnings(as.numeric(seca_kg)),
+    fat_android_pct = suppressWarnings(as.numeric(fat_android_pct)),
+    fat_total_pct   = suppressWarnings(as.numeric(fat_total_pct)),
+    fat_android_g   = suppressWarnings(as.numeric(fat_android_g)),
+    fat_total_g     = suppressWarnings(as.numeric(fat_total_g)),
+    LBM             = suppressWarnings(as.numeric(LBM))
+  )
+
+# Behold kun FP som har BEGGE målinger (pre + post)
+fp_begge <- dxa_clean %>%
+  group_by(id) %>%
+  summarise(har_pre = any(time == "pre"), har_post = any(time == "post")) %>%
+  filter(har_pre & har_post) %>%
+  pull(id)
+
+dxa_clean <- dxa_clean %>% filter(id %in% fp_begge)
+
+cat("DXA-data (kun pre+post-par):", nrow(dxa_clean), "rader,",
+    length(unique(dxa_clean$id)), "unike deltakere\n")
+cat("Scan-type:\n")
+print(table(dxa_clean$type))
+
+
+# =============================================================================
+# DEL 2: Bakgrunn fra REACT_data
+# =============================================================================
+
+bakgrunn_raw <- read_excel(
+  "data/raw/REACT_data_til_studenter.xlsx",
+  sheet = "Bakgrunn",
+  skip  = 1
+)
+
+bakgrunn_clean <- bakgrunn_raw %>%
+  select(
+    fp,
+    år                     = År,
+    treatment,
+    kjønn,
+    aldersgruppe_WHO,
+    round                  = `round (pilot, main_1, main_2)`,
+    dropout,
+    kreftform              = Kreftform_forenklet_utkast,
+    dager_siden_behandling = `dager siden siste behandling`
+  ) %>%
+  filter(!is.na(fp)) %>%
+  mutate(
+    fp                     = as.integer(fp),
+    år                     = as.integer(år),
+    # "y" = dropout, "bytte" = byttet gruppe — begge telles som dropout
+    dropout                = !is.na(dropout) & dropout %in% c("y", "bytte"),
+    dager_siden_behandling = suppressWarnings(as.numeric(dager_siden_behandling))
+  )
+
+# Rydd opp faktorer
+bakgrunn_clean <- bakgrunn_clean %>%
+  mutate(
+    treatment        = factor(treatment, levels = c("digital", "stedlig")),
+    kjønn            = factor(kjønn, levels = c("f", "m"),
+                              labels = c("Kvinne", "Mann")),
+    # aldersgruppe er lowercase i filen
+    aldersgruppe_WHO = factor(
+      tolower(trimws(aldersgruppe_WHO)),
+      levels = c("unge voksne", "middelaldrende", "eldre voksne", "gamle eldre"),
+      labels = c("Unge voksne", "Middelaldrende", "Eldre voksne", "Gamle eldre")
+    )
+  )
+
+cat("\nBakgrunn:", nrow(bakgrunn_clean), "deltakere totalt\n")
+cat("  2024 (main_1):", sum(bakgrunn_clean$år == 2024, na.rm=TRUE), "\n")
+cat("  2025 (main_2):", sum(bakgrunn_clean$år == 2025, na.rm=TRUE), "\n")
+cat("Grupper (alle år):\n")
+print(table(bakgrunn_clean$treatment))
+cat("Dropouts 2024:", sum(bakgrunn_clean$dropout & bakgrunn_clean$år == 2024, na.rm=TRUE), "\n")
+cat("Dropouts 2025:", sum(bakgrunn_clean$dropout & bakgrunn_clean$år == 2025, na.rm=TRUE), "\n")
+
+
+# =============================================================================
+# DEL 3: Antropometri fra REACT_data
+# =============================================================================
+
+antropometri_raw <- read_excel(
+  "data/raw/REACT_data_til_studenter.xlsx",
+  sheet = "Antropometri",
+  skip  = 1
+)
+
+antropometri_clean <- antropometri_raw %>%
+  select(
+    fp,
+    dato  = Dato,
+    test,
+    vekt,
+    høyde,
+    bmi   = `bmi_est (kg/m2)`,
+    midje = waist_circ
+  ) %>%
+  filter(!is.na(fp)) %>%
+  mutate(
+    fp    = as.integer(suppressWarnings(as.numeric(fp))),
+    test  = tolower(trimws(test)),
+    vekt  = suppressWarnings(as.numeric(vekt)),
+    høyde = suppressWarnings(as.numeric(høyde)),
+    bmi   = suppressWarnings(as.numeric(bmi)),
+    midje = suppressWarnings(as.numeric(midje))
+  ) %>%
+  filter(!is.na(fp))
+
+cat("\nAntropometri:", nrow(antropometri_clean), "rader\n")
+cat("Test-tidspunkt:\n")
+print(table(antropometri_clean$test, useNA = "ifany"))
+
+
+# =============================================================================
+# DEL 4: Lagre rensede data
+# =============================================================================
+
+saveRDS(dxa_clean,          "data/processed/dxa_clean.rds")
+saveRDS(bakgrunn_clean,     "data/processed/bakgrunn_clean.rds")
+saveRDS(antropometri_clean, "data/processed/antropometri_clean.rds")
+
+cat("\nFerdig! Filer lagret i data/processed/\n")
