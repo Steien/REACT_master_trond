@@ -72,19 +72,7 @@ n_tot <- nrow(bakgrunn_analyse)
 tabell[["n"]] <- lag_rad("n",
   as.character(n_dig), as.character(n_ste), as.character(n_tot))
 
-# --- Aldersgrupper (WHO) ---
-# NB: eksakt alder er ikke tilgjengelig i datasettet, kun aldersgruppe
-for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
-  d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
-    mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
-  s <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
-    mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
-  a <- bakgrunn_analyse %>% mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
-  tabell[[paste0("ald_", grp)]] <- lag_rad(
-    paste0("  ", grp), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
-}
-
-# --- Kjønn ---
+# --- Kjønn (plassert rett under n) ---
 kjonn_dig_k <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
   mutate(x = kjønn == "Kvinne") %>% pull(x)
 kjonn_ste_k <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
@@ -96,7 +84,22 @@ tabell[["kvinner"]] <- lag_rad("Kvinner, n (%)",
   n_pct(kjonn_dig_k, n_dig), n_pct(kjonn_ste_k, n_ste),
   n_pct(kjonn_all_k, n_tot))
 
+# --- Aldersgrupper (WHO) ---
+# NB: eksakt alder er ikke tilgjengelig i datasettet, kun aldersgruppe
+tabell[["ald_header"]] <- lag_rad("Aldersgruppe (WHO), n (%)", "", "", "")
+for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
+  d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
+    mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
+  s <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
+    mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
+  a <- bakgrunn_analyse %>% mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
+  tabell[[paste0("ald_", grp)]] <- lag_rad(
+    paste0("  ", grp), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
+}
+
 # --- Kreftform ---
+tabell[["kf_header"]] <- lag_rad("Kreftform, n (%)", "", "", "")
+
 kreftformer <- sort(unique(na.omit(bakgrunn_analyse$kreftform)))
 for (kf in kreftformer) {
   d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
@@ -172,6 +175,36 @@ write.csv(tabell1, "output/tables/tabell1_baseline.csv",
           row.names = FALSE, fileEncoding = "UTF-8")
 
 # --- Pen tabell med flextable ---
+# Radrekkefølge etter bind_rows:
+# 1:  n
+# 2:  Kvinner
+# 3:  Aldersgruppe (WHO) — seksjonslabel (bold)
+# 4:    Unge voksne
+# 5:    Middelaldrende
+# 6:    Eldre voksne
+# 7:    Gamle eldre
+# 8:  Kreftform — seksjonslabel (bold)
+# 9:    Blodkreft
+# 10:   Brystkreft
+# 11:   Gynkreft
+# 12:   Lungekreft
+# 13:   Lymfekreft
+# 14:   Mage-tarmkreft
+# 15:   Melanom
+# 16:   Munn og svelg
+# 17:   Prostata
+# 18: Dager siden siste behandling
+# 19: Kroppsvekt
+# 20: Høyde
+# 21: BMI
+# 22: Midjeomkrets
+# 23: Mager masse (LBM)
+# 24: Total fettmasse
+# 25: Total fettprosent
+
+thin  <- fp_border(color = "grey60", width = 0.5)
+thick <- fp_border(color = "black",  width = 1.0)
+
 ft <- flextable(tabell1) %>%
 
   # Kolonneoverskrifter
@@ -185,21 +218,20 @@ ft <- flextable(tabell1) %>%
   # Tittel over tabellen
   add_header_lines("Tabell 1. Baseline-karakteristikker fordelt på gruppe") %>%
 
-  # Grupperingslinje over de tre tallkolonnene
-  add_header_row(
-    values = c("", "Gruppe", ""),
-    colwidths = c(1, 2, 1)
-  ) %>%
+  # Tykk linje øverst og nederst, tynn under kolonneoverskrift
+  hline_top(border = thick, part = "header") %>%
+  hline_bottom(border = thin, part = "header") %>%
+  hline_bottom(border = thick, part = "body") %>%
 
-  # Fet skrift på overskrifter
+  # Tynne skillelinjer mellom seksjoner
+  hline(i = c(2, 7, 17, 22), border = thin, part = "body") %>%
+
+  # Fet skrift på seksjonslabeler (rad 3 og 8)
+  bold(i = c(3, 8), part = "body") %>%
   bold(part = "header") %>%
 
-  # Rykk inn gruppert-rader (de som starter med mellomrom)
+  # Kursiv på innrykk-rader
   italic(i = ~ grepl("^  ", Variabel), j = "Variabel") %>%
-
-  # Legg inn horisontale skillelinjer mellom seksjoner
-  hline(i = c(4, 6, 15, 16, 21),
-        border = fp_border(color = "grey70", width = 0.5)) %>%
 
   # Kolonnebredder
   width(j = "Variabel", width = 3.5) %>%
@@ -207,13 +239,14 @@ ft <- flextable(tabell1) %>%
 
   # Midtstill tallkolonner
   align(j = c("Digital", "Stedlig", "Totalt"), align = "center", part = "all") %>%
+  align(j = "Variabel", align = "left", part = "all") %>%
 
   # Skriftstørrelse og font
   fontsize(size = 10, part = "all") %>%
   font(fontname = "Times New Roman", part = "all") %>%
 
-  # Zebra-striper for lesbarhet
-  bg(i = seq(2, nrow(tabell1), by = 2), bg = "#f5f5f5") %>%
+  # Fjern all bakgrunnsfarge (ren hvit tabell)
+  bg(bg = "white", part = "all") %>%
 
   set_table_properties(layout = "autofit")
 
