@@ -19,7 +19,6 @@ bakgrunn     <- readRDS("data/processed/bakgrunn_clean.rds")
 antropometri <- readRDS("data/processed/antropometri_clean.rds")
 dxa          <- readRDS("data/processed/dxa_clean.rds")
 
-# Kun 2024-deltakere med begge DXA-malinger (pre+post)
 fp_analyse       <- unique(dxa$id)
 bakgrunn_analyse <- bakgrunn %>% filter(fp %in% fp_analyse, aar == 2024)
 antro_pre        <- antropometri %>% filter(fp %in% fp_analyse, test == "pre")
@@ -58,6 +57,20 @@ lag_rad <- function(variabelnavn, digital_verdi, stedlig_verdi, total_verdi) {
 
 # =============================================================================
 # Bygg Tabell 1
+# Radrekkefolge:
+#  1: n
+#  2: Kvinner, n (%)
+#  3: Aldersgruppe (WHO), n (%)         [bold, tom]
+#  4-7:   Unge voksne ... Gamle eldre
+#  8: Kreftform, n (%)                  [bold, tom]
+#  9-17:  Blodkreft ... Prostata
+# 18: Behandlingstype, n (%)1           [bold, tom]
+# 19-25:  Cellegift ... Annet
+# 26: Dager siden siste behandling
+# 27: Antropometri (pre), gj.snitt (SD) [bold, tom]
+# 28-31:  Kroppsvekt ... Midjeomkrets
+# 32: DXA-malinger (pre), gj.snitt (SD) [bold, tom]
+# 33-35:  LBM ... Fettprosent
 # =============================================================================
 
 tabell <- list()
@@ -77,21 +90,18 @@ kjonn_ste_k <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
   mutate(x = kjonn == "Kvinne") %>% pull(x)
 kjonn_all_k <- bakgrunn_analyse %>%
   mutate(x = kjonn == "Kvinne") %>% pull(x)
-
 tabell[["kvinner"]] <- lag_rad("Kvinner, n (%)",
   n_pct(kjonn_dig_k, n_dig), n_pct(kjonn_ste_k, n_ste),
   n_pct(kjonn_all_k, n_tot))
 
 # --- Aldersgrupper (WHO) ---
 tabell[["ald_header"]] <- lag_rad("Aldersgruppe (WHO), n (%)", "", "", "")
-
 ald_labels <- c(
   "Unge voksne"    = "  Unge voksne (18\u201344 \u00e5r)",
   "Middelaldrende" = "  Middelaldrende (45\u201359 \u00e5r)",
   "Eldre voksne"   = "  Eldre voksne (60\u201374 \u00e5r)",
   "Gamle eldre"    = "  Gamle eldre (75+ \u00e5r)"
 )
-
 for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
   d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
     mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
@@ -104,7 +114,6 @@ for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
 
 # --- Kreftform ---
 tabell[["kf_header"]] <- lag_rad("Kreftform, n (%)", "", "", "")
-
 kreftformer <- sort(unique(na.omit(bakgrunn_analyse$kreftform)))
 for (kf in kreftformer) {
   d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
@@ -117,6 +126,10 @@ for (kf in kreftformer) {
 }
 
 # --- Behandlingstype (ikke gjensidig utelukkende) ---
+# \u00b9 = superscript 1
+tabell[["beh_header"]] <- lag_rad(
+  "Behandlingstype, n (%)\u00b9", "", "", "")
+
 behandling_map <- c(
   "Kreftbehandling.1" = "Cellegift",
   "Kreftbehandling.2" = "Str\u00e5ling",
@@ -126,7 +139,6 @@ behandling_map <- c(
   "Kreftbehandling.6" = "Legemidler",
   "Kreftbehandling.7" = "Annet"
 )
-
 bakgrunn_raw_beh <- read_excel(
   "data/raw/REACT_data_til_studenter.xlsx",
   sheet = "Bakgrunn", skip = 1
@@ -139,8 +151,6 @@ beh_data <- bakgrunn_analyse %>%
   select(fp, treatment) %>%
   left_join(bakgrunn_raw_beh, by = "fp")
 
-tabell[["beh_header"]] <- lag_rad("Behandlingstype, n (%)a", "", "", "")
-
 for (kol in names(behandling_map)) {
   navn <- behandling_map[kol]
   d <- beh_data %>% filter(treatment == "digital") %>%
@@ -152,7 +162,7 @@ for (kol in names(behandling_map)) {
     paste0("  ", navn), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
 }
 
-# --- Dager siden siste behandling ---
+# --- Dager siden siste behandling (plassert etter behandlingstype) ---
 dag_dig <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
   pull(dager_siden_behandling)
 dag_ste <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
@@ -170,19 +180,18 @@ antro_s <- antro_pre %>%
   left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp") %>%
   filter(treatment == "stedlig")
 
-tabell[["vekt"]] <- lag_rad("Kroppsvekt, kg, gj.snitt (SD)",
-  mean_sd(antro_d$vekt), mean_sd(antro_s$vekt), mean_sd(antro_pre$vekt))
-
-tabell[["hoyde"]] <- lag_rad("H\u00f8yde, cm, gj.snitt (SD)",
+tabell[["antro_header"]] <- lag_rad(
+  "Antropometri (pre), gj.snitt (SD)", "", "", "")
+tabell[["vekt"]]  <- lag_rad("  Kroppsvekt, kg",
+  mean_sd(antro_d$vekt),  mean_sd(antro_s$vekt),  mean_sd(antro_pre$vekt))
+tabell[["hoyde"]] <- lag_rad("  H\u00f8yde, cm",
   mean_sd(antro_d$hoyde), mean_sd(antro_s$hoyde), mean_sd(antro_pre$hoyde))
-
-tabell[["bmi"]] <- lag_rad("BMI, kg/m\u00b2, gj.snitt (SD)",
-  mean_sd(antro_d$bmi), mean_sd(antro_s$bmi), mean_sd(antro_pre$bmi))
-
-tabell[["midje"]] <- lag_rad("Midjeomkrets, cm, gj.snitt (SD)",
+tabell[["bmi"]]   <- lag_rad("  BMI, kg/m\u00b2",
+  mean_sd(antro_d$bmi),   mean_sd(antro_s$bmi),   mean_sd(antro_pre$bmi))
+tabell[["midje"]] <- lag_rad("  Midjeomkrets, cm",
   mean_sd(antro_d$midje), mean_sd(antro_s$midje), mean_sd(antro_pre$midje))
 
-# --- DXA baseline ---
+# --- DXA-malinger (pre) ---
 dxa_d <- dxa_pre %>%
   left_join(bakgrunn_analyse %>% select(fp, treatment), by = c("id" = "fp")) %>%
   filter(treatment == "digital")
@@ -190,16 +199,14 @@ dxa_s <- dxa_pre %>%
   left_join(bakgrunn_analyse %>% select(fp, treatment), by = c("id" = "fp")) %>%
   filter(treatment == "stedlig")
 
-tabell[["lbm"]] <- lag_rad("Mager masse (LBM), g, gj.snitt (SD)",
-  mean_sd(dxa_d$LBM), mean_sd(dxa_s$LBM), mean_sd(dxa_pre$LBM))
-
-tabell[["fett_g"]] <- lag_rad("Total fettmasse, g, gj.snitt (SD)",
-  mean_sd(dxa_d$fat_total_g), mean_sd(dxa_s$fat_total_g),
-  mean_sd(dxa_pre$fat_total_g))
-
-tabell[["fett_pct"]] <- lag_rad("Total fettprosent, %, gj.snitt (SD)",
-  mean_sd(dxa_d$fat_total_pct), mean_sd(dxa_s$fat_total_pct),
-  mean_sd(dxa_pre$fat_total_pct))
+tabell[["dxa_header"]] <- lag_rad(
+  "DXA-m\u00e5linger (pre), gj.snitt (SD)", "", "", "")
+tabell[["lbm"]]      <- lag_rad("  Mager masse (LBM), g",
+  mean_sd(dxa_d$LBM),          mean_sd(dxa_s$LBM),          mean_sd(dxa_pre$LBM))
+tabell[["fett_g"]]   <- lag_rad("  Total fettmasse, g",
+  mean_sd(dxa_d$fat_total_g),   mean_sd(dxa_s$fat_total_g),  mean_sd(dxa_pre$fat_total_g))
+tabell[["fett_pct"]] <- lag_rad("  Total fettprosent, %",
+  mean_sd(dxa_d$fat_total_pct), mean_sd(dxa_s$fat_total_pct),mean_sd(dxa_pre$fat_total_pct))
 
 
 # =============================================================================
@@ -214,17 +221,20 @@ write.csv(tabell1, "output/tables/tabell1_baseline.csv",
 thin  <- fp_border(color = "grey60", width = 0.5)
 thick <- fp_border(color = "black",  width = 1.0)
 
+# Finn radnummer dynamisk
 bold_rader <- which(tabell1$Variabel %in% c(
   "Aldersgruppe (WHO), n (%)",
   "Kreftform, n (%)",
-  "Behandlingstype, n (%)a"
+  "Behandlingstype, n (%)\u00b9",
+  "Antropometri (pre), gj.snitt (SD)",
+  "DXA-m\u00e5linger (pre), gj.snitt (SD)"
 ))
 
 linje_etter <- c(
   which(tabell1$Variabel == "Kvinner, n (%)"),
   which(tabell1$Variabel == paste0("  Gamle eldre (75+ \u00e5r)")),
   which(grepl("Prostata", tabell1$Variabel)),
-  which(grepl("Annet", tabell1$Variabel)),
+  which(tabell1$Variabel == "Dager siden siste behandling, gj.snitt (SD)"),
   which(grepl("Midjeomkrets", tabell1$Variabel))
 )
 
@@ -235,7 +245,8 @@ ft <- flextable(tabell1) %>%
     Stedlig  = paste0("Veiledet stedlig\n(n=", n_ste, ")"),
     Totalt   = paste0("Totalt\n(n=", n_tot, ")")
   ) %>%
-  add_header_lines("Tabell 1. Baseline-karakteristikker fordelt p\u00e5 gruppe") %>%
+  add_header_lines(
+    "Tabell 1. Baseline-karakteristikker fordelt p\u00e5 gruppe") %>%
   hline_top(border = thick, part = "header") %>%
   hline_bottom(border = thin,  part = "header") %>%
   hline_bottom(border = thick, part = "body") %>%
@@ -243,18 +254,18 @@ ft <- flextable(tabell1) %>%
   bold(i = bold_rader, part = "body") %>%
   bold(part = "header") %>%
   italic(i = ~ grepl("^  ", Variabel), j = "Variabel") %>%
-  width(j = "Variabel", width = 3.2) %>%
-  width(j = c("Digital", "Stedlig", "Totalt"), width = 1.6) %>%
+  width(j = "Variabel", width = 3.4) %>%
+  width(j = c("Digital", "Stedlig", "Totalt"), width = 1.1) %>%
   align(j = c("Digital", "Stedlig", "Totalt"), align = "center", part = "all") %>%
   align(j = "Variabel", align = "left", part = "all") %>%
-  padding(padding.top = 1, padding.bottom = 1, part = "body") %>%
-  padding(padding.top = 3, padding.bottom = 3, part = "header") %>%
-  fontsize(size = 9, part = "all") %>%
+  padding(padding.top = 2, padding.bottom = 2, part = "body") %>%
+  padding(padding.top = 4, padding.bottom = 4, part = "header") %>%
+  fontsize(size = 10, part = "all") %>%
   font(fontname = "Times New Roman", part = "all") %>%
   bg(bg = "white", part = "all") %>%
   set_table_properties(layout = "fixed") %>%
   add_footer_lines(paste0(
-    "a Kategoriene er ikke gjensidig utelukkende; en deltaker kan ha mottatt ",
+    "\u00b9 Kategoriene er ikke gjensidig utelukkende; en deltaker kan ha mottatt ",
     "flere behandlingstyper. ",
     "SD = standardavvik; LBM = lean body mass (mager kroppsmasse). ",
     "For n = 6 deltakere der kroppen oversteg m\u00e5leomr\u00e5det til DXA-maskinen, ",
@@ -267,14 +278,7 @@ ft <- flextable(tabell1) %>%
 
 print(ft)
 
-seksjon <- prop_section(
-  page_size    = page_size(width = 21 / 2.54, height = 29.7 / 2.54),
-  page_margins = page_mar(top = 1.5 / 2.54, bottom = 1.5 / 2.54,
-                          left = 2 / 2.54,   right = 2 / 2.54)
-)
-
-doc <- read_docx(system.file("template/template.docx", package = "officer")) %>%
-  body_set_default_section(seksjon) %>%
+doc <- read_docx() %>%
   body_add_flextable(ft)
 
 print(doc, target = "output/tables/tabell1_baseline.docx")
