@@ -255,7 +255,18 @@ ft <- flextable(tabell1) %>%
   # Fjern all bakgrunnsfarge (ren hvit tabell)
   bg(bg = "white", part = "all") %>%
 
-  set_table_properties(layout = "autofit")
+  set_table_properties(layout = "autofit") %>%
+
+  # Fotnote under tabellen
+  add_footer_lines(paste0(
+    "SD = standardavvik; LBM = lean body mass (mager kroppsmasse). ",
+    "For n = 6 deltakere der kroppen oversteg m\u00e5leomr\u00e5det til DXA-maskinen, ",
+    "ble offset-scanning benyttet med programvareestimert venstreside, ",
+    "i tr\u00e5d med International Society for Clinical Densitometry (ISCD, 2023)."
+  )) %>%
+  italic(part = "footer") %>%
+  fontsize(size = 9, part = "footer") %>%
+  font(fontname = "Times New Roman", part = "footer")
 
 # Vis i RStudio Viewer
 print(ft)
