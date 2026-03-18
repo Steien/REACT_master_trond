@@ -162,11 +162,68 @@ tabell[["fett_pct"]] <- lag_rad("Total fettprosent, %, gj.snitt (SD)",
 # Skriv ut og lagre
 # =============================================================================
 
+library(flextable)
+library(officer)
+
 tabell1 <- bind_rows(tabell)
 
-cat("=== TABELL 1: Baseline-karakteristikker ===\n\n")
-print(tabell1, row.names = FALSE)
-
+# Lagre rådata som CSV
 write.csv(tabell1, "output/tables/tabell1_baseline.csv",
           row.names = FALSE, fileEncoding = "UTF-8")
-cat("\nLagret: output/tables/tabell1_baseline.csv\n")
+
+# --- Pen tabell med flextable ---
+ft <- flextable(tabell1) %>%
+
+  # Kolonneoverskrifter
+  set_header_labels(
+    Variabel = "",
+    Digital  = paste0("Digital hjemmetrening\n(n=", n_dig, ")"),
+    Stedlig  = paste0("Veiledet stedlig\n(n=", n_ste, ")"),
+    Totalt   = paste0("Totalt\n(n=", n_tot, ")")
+  ) %>%
+
+  # Tittel over tabellen
+  add_header_lines("Tabell 1. Baseline-karakteristikker fordelt på gruppe") %>%
+
+  # Grupperingslinje over de tre tallkolonnene
+  add_header_row(
+    values = c("", "Gruppe", ""),
+    colwidths = c(1, 2, 1)
+  ) %>%
+
+  # Fet skrift på overskrifter
+  bold(part = "header") %>%
+
+  # Rykk inn gruppert-rader (de som starter med mellomrom)
+  italic(i = ~ grepl("^  ", Variabel), j = "Variabel") %>%
+
+  # Legg inn horisontale skillelinjer mellom seksjoner
+  hline(i = c(4, 6, 15, 16, 21),
+        border = fp_border(color = "grey70", width = 0.5)) %>%
+
+  # Kolonnebredder
+  width(j = "Variabel", width = 3.5) %>%
+  width(j = c("Digital", "Stedlig", "Totalt"), width = 1.8) %>%
+
+  # Midtstill tallkolonner
+  align(j = c("Digital", "Stedlig", "Totalt"), align = "center", part = "all") %>%
+
+  # Skriftstørrelse og font
+  fontsize(size = 10, part = "all") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+
+  # Zebra-striper for lesbarhet
+  bg(i = seq(2, nrow(tabell1), by = 2), bg = "#f5f5f5") %>%
+
+  set_table_properties(layout = "autofit")
+
+# Vis i RStudio Viewer
+print(ft)
+
+# Eksporter til Word
+doc <- read_docx() %>%
+  body_add_par("", style = "Normal") %>%
+  body_add_flextable(ft)
+
+print(doc, target = "output/tables/tabell1_baseline.docx")
+cat("Lagret: output/tables/tabell1_baseline.docx\n")
