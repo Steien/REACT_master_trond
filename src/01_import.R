@@ -1,12 +1,11 @@
 # =============================================================================
 # 01_import.R
-# Leser inn og rydder rådata fra DXA_data.xlsx og REACT_data_til_studenter.xlsx
+# Leser inn og rydder radata fra DXA_data.xlsx og REACT_data_til_studenter.xlsx
 # Output: data/processed/dxa_clean.rds
 #         data/processed/bakgrunn_clean.rds
 #         data/processed/antropometri_clean.rds
 #
 # Merk: REACT_data_til_studenter inneholder kun RCT-deltakere (fp 11-99).
-#       Kohorte-deltakere (200/300-serien) er ikke i Bakgrunn/Antropometri-arkene.
 # =============================================================================
 
 library(readxl)
@@ -18,18 +17,15 @@ library(dplyr)
 
 dxa_raw <- read_excel("data/raw/DXA_data.xlsx")
 
-# Håndter deltakere som var for brede for DXA-maskinen:
+# Handter deltakere som var for brede for DXA-maskinen:
 # - type = "f": full scan, brukes direkte
-# - type = "r": høyre scan med DXA-estimert venstreside (speiling) — brukes
-# - type = "l": forkastes (maskinens speiling fra høyre scan er anbefalt metode)
+# - type = "r": hoyre scan med DXA-estimert venstreside (speiling) -- brukes
+# - type = "l": forkastes
 # Kilde: ISCD Official Positions 2023
 
 dxa_clean <- dxa_raw %>%
   filter(!is.na(id)) %>%
-  filter(type != "l")
-
-# Gi kolonner ryddigere navn og sørg for riktige typer
-dxa_clean <- dxa_clean %>%
+  filter(type != "l") %>%
   rename(
     fat_android_pct = `fat_android_%`,
     fat_total_pct   = `fat_total_%`
@@ -37,9 +33,10 @@ dxa_clean <- dxa_clean %>%
   mutate(
     id              = as.integer(id),
     time            = factor(time, levels = c("pre", "post")),
-    sex             = factor(sex, levels = c("f", "m"), labels = c("Kvinne", "Mann")),
+    sex             = factor(sex, levels = c("f", "m"),
+                             labels = c("Kvinne", "Mann")),
     type            = factor(type, levels = c("f", "r"),
-                             labels = c("Full scan", "Høyre (speiling)")),
+                             labels = c("Full scan", "Hoyre (speiling)")),
     dxa_kg          = suppressWarnings(as.numeric(dxa_kg)),
     seca_kg         = suppressWarnings(as.numeric(seca_kg)),
     fat_android_pct = suppressWarnings(as.numeric(fat_android_pct)),
@@ -49,10 +46,12 @@ dxa_clean <- dxa_clean %>%
     LBM             = suppressWarnings(as.numeric(LBM))
   )
 
-# Behold kun FP som har BEGGE målinger (pre + post)
+# Behold kun FP som har BEGGE malinger (pre + post)
 fp_begge <- dxa_clean %>%
   group_by(id) %>%
-  summarise(har_pre = any(time == "pre"), har_post = any(time == "post")) %>%
+  summarise(har_pre  = any(time == "pre"),
+            har_post = any(time == "post"),
+            .groups  = "drop") %>%
   filter(har_pre & har_post) %>%
   pull(id)
 
@@ -77,31 +76,26 @@ bakgrunn_raw <- read_excel(
 bakgrunn_clean <- bakgrunn_raw %>%
   select(
     fp,
-    år                     = År,
+    aar                    = "\u00c5r",
     treatment,
-    kjønn,
+    kjonn                  = "kj\u00f8nn",
     aldersgruppe_WHO,
-    round                  = `round (pilot, main_1, main_2)`,
+    round                  = "round (pilot, main_1, main_2)",
     dropout,
     kreftform              = Kreftform_forenklet_utkast,
-    dager_siden_behandling = `dager siden siste behandling`
+    dager_siden_behandling = "dager siden siste behandling"
   ) %>%
   filter(!is.na(fp)) %>%
   mutate(
     fp                     = as.integer(fp),
-    år                     = as.integer(år),
-    # "y" = dropout, "bytte" = byttet gruppe — begge telles som dropout
+    aar                    = as.integer(aar),
     dropout                = !is.na(dropout) & dropout %in% c("y", "bytte"),
     dager_siden_behandling = suppressWarnings(as.numeric(dager_siden_behandling))
-  )
-
-# Rydd opp faktorer
-bakgrunn_clean <- bakgrunn_clean %>%
+  ) %>%
   mutate(
     treatment        = factor(treatment, levels = c("digital", "stedlig")),
-    kjønn            = factor(kjønn, levels = c("f", "m"),
+    kjonn            = factor(kjonn, levels = c("f", "m"),
                               labels = c("Kvinne", "Mann")),
-    # aldersgruppe er lowercase i filen
     aldersgruppe_WHO = factor(
       tolower(trimws(aldersgruppe_WHO)),
       levels = c("unge voksne", "middelaldrende", "eldre voksne", "gamle eldre"),
@@ -110,12 +104,14 @@ bakgrunn_clean <- bakgrunn_clean %>%
   )
 
 cat("\nBakgrunn:", nrow(bakgrunn_clean), "deltakere totalt\n")
-cat("  2024 (main_1):", sum(bakgrunn_clean$år == 2024, na.rm=TRUE), "\n")
-cat("  2025 (main_2):", sum(bakgrunn_clean$år == 2025, na.rm=TRUE), "\n")
-cat("Grupper (alle år):\n")
+cat("  2024:", sum(bakgrunn_clean$aar == 2024, na.rm = TRUE), "\n")
+cat("  2025:", sum(bakgrunn_clean$aar == 2025, na.rm = TRUE), "\n")
+cat("Grupper:\n")
 print(table(bakgrunn_clean$treatment))
-cat("Dropouts 2024:", sum(bakgrunn_clean$dropout & bakgrunn_clean$år == 2024, na.rm=TRUE), "\n")
-cat("Dropouts 2025:", sum(bakgrunn_clean$dropout & bakgrunn_clean$år == 2025, na.rm=TRUE), "\n")
+cat("Dropouts 2024:", sum(bakgrunn_clean$dropout & bakgrunn_clean$aar == 2024,
+                          na.rm = TRUE), "\n")
+cat("Dropouts 2025:", sum(bakgrunn_clean$dropout & bakgrunn_clean$aar == 2025,
+                          na.rm = TRUE), "\n")
 
 
 # =============================================================================
@@ -134,8 +130,8 @@ antropometri_clean <- antropometri_raw %>%
     dato  = Dato,
     test,
     vekt,
-    høyde,
-    bmi   = `bmi_est (kg/m2)`,
+    hoyde = "h\u00f8yde",
+    bmi   = "bmi_est (kg/m2)",
     midje = waist_circ
   ) %>%
   filter(!is.na(fp)) %>%
@@ -143,7 +139,7 @@ antropometri_clean <- antropometri_raw %>%
     fp    = as.integer(suppressWarnings(as.numeric(fp))),
     test  = tolower(trimws(test)),
     vekt  = suppressWarnings(as.numeric(vekt)),
-    høyde = suppressWarnings(as.numeric(høyde)),
+    hoyde = suppressWarnings(as.numeric(hoyde)),
     bmi   = suppressWarnings(as.numeric(bmi)),
     midje = suppressWarnings(as.numeric(midje))
   ) %>%

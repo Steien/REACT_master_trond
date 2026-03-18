@@ -1,12 +1,15 @@
 # =============================================================================
 # 02_deskriptiv.R
-# Deskriptiv statistikk og Tabell 1 — baseline-karakteristikker per gruppe
+# Deskriptiv statistikk og Tabell 1 -- baseline-karakteristikker per gruppe
 # Output: output/tables/tabell1_baseline.csv
+#         output/tables/tabell1_baseline.docx
 # =============================================================================
 
 library(dplyr)
 library(tidyr)
 library(readxl)
+library(flextable)
+library(officer)
 
 # =============================================================================
 # Les inn data
@@ -16,13 +19,10 @@ bakgrunn     <- readRDS("data/processed/bakgrunn_clean.rds")
 antropometri <- readRDS("data/processed/antropometri_clean.rds")
 dxa          <- readRDS("data/processed/dxa_clean.rds")
 
-# Kun 2024-deltakere med begge DXA-målinger (pre+post)
-# 2025-data er ikke ferdig innsamlet ennå
-fp_analyse <- unique(dxa$id)
-
-bakgrunn_analyse <- bakgrunn %>% filter(fp %in% fp_analyse, år == 2024)
-antro_pre        <- antropometri %>%
-  filter(fp %in% fp_analyse, test == "pre")
+# Kun 2024-deltakere med begge DXA-malinger (pre+post)
+fp_analyse       <- unique(dxa$id)
+bakgrunn_analyse <- bakgrunn %>% filter(fp %in% fp_analyse, aar == 2024)
+antro_pre        <- antropometri %>% filter(fp %in% fp_analyse, test == "pre")
 dxa_pre          <- dxa %>% filter(id %in% fp_analyse, time == "pre")
 
 cat("Deltakere i analysen:", length(fp_analyse), "\n")
@@ -34,25 +34,16 @@ cat("Gruppe stedlig:", sum(bakgrunn_analyse$treatment == "stedlig"), "\n\n")
 # Hjelpefunksjoner
 # =============================================================================
 
-# Oppsummerer kontinuerlige variabler: Gjennomsnitt (SD)
 mean_sd <- function(x) {
   x <- x[!is.na(x)]
   if (length(x) == 0) return(NA_character_)
   sprintf("%.1f (%.1f)", mean(x), sd(x))
 }
 
-# Oppsummerer kategoriske variabler: n (%)
 n_pct <- function(x, total) {
   n <- sum(!is.na(x) & x)
   sprintf("%d (%.0f%%)", n, 100 * n / total)
 }
-
-
-# =============================================================================
-# Bygg Tabell 1
-# =============================================================================
-
-grupper <- c("digital", "stedlig")
 
 lag_rad <- function(variabelnavn, digital_verdi, stedlig_verdi, total_verdi) {
   data.frame(
@@ -64,35 +55,41 @@ lag_rad <- function(variabelnavn, digital_verdi, stedlig_verdi, total_verdi) {
   )
 }
 
+
+# =============================================================================
+# Bygg Tabell 1
+# =============================================================================
+
 tabell <- list()
 
-# --- Antall ---
 n_dig <- sum(bakgrunn_analyse$treatment == "digital")
 n_ste <- sum(bakgrunn_analyse$treatment == "stedlig")
 n_tot <- nrow(bakgrunn_analyse)
+
+# --- Antall ---
 tabell[["n"]] <- lag_rad("n",
   as.character(n_dig), as.character(n_ste), as.character(n_tot))
 
-# --- Kjønn (plassert rett under n) ---
+# --- Kjonn ---
 kjonn_dig_k <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
-  mutate(x = kjønn == "Kvinne") %>% pull(x)
+  mutate(x = kjonn == "Kvinne") %>% pull(x)
 kjonn_ste_k <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
-  mutate(x = kjønn == "Kvinne") %>% pull(x)
+  mutate(x = kjonn == "Kvinne") %>% pull(x)
 kjonn_all_k <- bakgrunn_analyse %>%
-  mutate(x = kjønn == "Kvinne") %>% pull(x)
+  mutate(x = kjonn == "Kvinne") %>% pull(x)
 
 tabell[["kvinner"]] <- lag_rad("Kvinner, n (%)",
   n_pct(kjonn_dig_k, n_dig), n_pct(kjonn_ste_k, n_ste),
   n_pct(kjonn_all_k, n_tot))
 
 # --- Aldersgrupper (WHO) ---
-# NB: eksakt alder er ikke tilgjengelig i datasettet, kun aldersgruppe
 tabell[["ald_header"]] <- lag_rad("Aldersgruppe (WHO), n (%)", "", "", "")
+
 ald_labels <- c(
-  "Unge voksne"   = "  Unge voksne (18\u201344 \u00e5r)",
+  "Unge voksne"    = "  Unge voksne (18\u201344 \u00e5r)",
   "Middelaldrende" = "  Middelaldrende (45\u201359 \u00e5r)",
-  "Eldre voksne"  = "  Eldre voksne (60\u201374 \u00e5r)",
-  "Gamle eldre"   = "  Gamle eldre (75+ \u00e5r)"
+  "Eldre voksne"   = "  Eldre voksne (60\u201374 \u00e5r)",
+  "Gamle eldre"    = "  Gamle eldre (75+ \u00e5r)"
 )
 
 for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
@@ -130,7 +127,6 @@ behandling_map <- c(
   "Kreftbehandling.7" = "Annet"
 )
 
-# Les behandlingskolonner fra rådata og koble til analysegruppen
 bakgrunn_raw_beh <- read_excel(
   "data/raw/REACT_data_til_studenter.xlsx",
   sheet = "Bakgrunn", skip = 1
@@ -161,7 +157,8 @@ dag_dig <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
   pull(dager_siden_behandling)
 dag_ste <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
   pull(dager_siden_behandling)
-tabell[["dager"]] <- lag_rad("Dager siden siste behandling, gj.snitt (SD)",
+tabell[["dager"]] <- lag_rad(
+  "Dager siden siste behandling, gj.snitt (SD)",
   mean_sd(dag_dig), mean_sd(dag_ste),
   mean_sd(bakgrunn_analyse$dager_siden_behandling))
 
@@ -177,10 +174,9 @@ tabell[["vekt"]] <- lag_rad("Kroppsvekt, kg, gj.snitt (SD)",
   mean_sd(antro_d$vekt), mean_sd(antro_s$vekt), mean_sd(antro_pre$vekt))
 
 tabell[["hoyde"]] <- lag_rad("H\u00f8yde, cm, gj.snitt (SD)",
-  mean_sd(antro_d$høyde), mean_sd(antro_s$høyde),
-  mean_sd(antro_pre$høyde))
+  mean_sd(antro_d$hoyde), mean_sd(antro_s$hoyde), mean_sd(antro_pre$hoyde))
 
-tabell[["bmi"]] <- lag_rad("BMI, kg/m², gj.snitt (SD)",
+tabell[["bmi"]] <- lag_rad("BMI, kg/m\u00b2, gj.snitt (SD)",
   mean_sd(antro_d$bmi), mean_sd(antro_s$bmi), mean_sd(antro_pre$bmi))
 
 tabell[["midje"]] <- lag_rad("Midjeomkrets, cm, gj.snitt (SD)",
@@ -207,122 +203,77 @@ tabell[["fett_pct"]] <- lag_rad("Total fettprosent, %, gj.snitt (SD)",
 
 
 # =============================================================================
-# Skriv ut og lagre
+# Bygg flextable og eksporter
 # =============================================================================
-
-library(flextable)
-library(officer)
 
 tabell1 <- bind_rows(tabell)
 
-# Lagre rådata som CSV
 write.csv(tabell1, "output/tables/tabell1_baseline.csv",
           row.names = FALSE, fileEncoding = "UTF-8")
-
-# --- Pen tabell med flextable ---
-# Radrekkefølge etter bind_rows:
-# 1:  n
-# 2:  Kvinner
-# 3:  Aldersgruppe (WHO), n (%) — bold
-# 4:    Unge voksne (18–44 år)
-# 5:    Middelaldrende (45–59 år)
-# 6:    Eldre voksne (60–74 år)
-# 7:    Gamle eldre (75+ år)
-# 8:  Kreftform, n (%) — bold
-# 9:    Blodkreft ... 17: Prostata
-# 18: Behandlingstype, n (%)a — bold
-# 19:   Cellegift ... 25: Annet
-# 26: Dager siden siste behandling
-# 27: Kroppsvekt
-# 28: Høyde
-# 29: BMI
-# 30: Midjeomkrets
-# 31: Mager masse (LBM)
-# 32: Total fettmasse
-# 33: Total fettprosent
 
 thin  <- fp_border(color = "grey60", width = 0.5)
 thick <- fp_border(color = "black",  width = 1.0)
 
-# Finn radnummer for seksjonslabeler dynamisk
 bold_rader <- which(tabell1$Variabel %in% c(
   "Aldersgruppe (WHO), n (%)",
   "Kreftform, n (%)",
   "Behandlingstype, n (%)a"
 ))
 
-# Finn radnummer for seksjonsgrenser (linjer går ETTER disse radene)
 linje_etter <- c(
-  which(tabell1$Variabel == "Kvinner, n (%)"),            # etter kvinner
-  which(tabell1$Variabel == "  Gamle eldre (75\u00e5r)"), # etter aldersgrupper
-  which(grepl("Prostata", tabell1$Variabel)),             # etter kreftform
-  which(grepl("Annet", tabell1$Variabel)),                # etter behandlingstype
-  which(grepl("Midjeomkrets", tabell1$Variabel))          # etter antropometri
+  which(tabell1$Variabel == "Kvinner, n (%)"),
+  which(tabell1$Variabel == paste0("  Gamle eldre (75+ \u00e5r)")),
+  which(grepl("Prostata", tabell1$Variabel)),
+  which(grepl("Annet", tabell1$Variabel)),
+  which(grepl("Midjeomkrets", tabell1$Variabel))
 )
 
 ft <- flextable(tabell1) %>%
-
   set_header_labels(
     Variabel = "",
     Digital  = paste0("Digital hjemmetrening\n(n=", n_dig, ")"),
     Stedlig  = paste0("Veiledet stedlig\n(n=", n_ste, ")"),
     Totalt   = paste0("Totalt\n(n=", n_tot, ")")
   ) %>%
-
   add_header_lines("Tabell 1. Baseline-karakteristikker fordelt p\u00e5 gruppe") %>%
-
   hline_top(border = thick, part = "header") %>%
   hline_bottom(border = thin,  part = "header") %>%
   hline_bottom(border = thick, part = "body") %>%
   hline(i = linje_etter, border = thin, part = "body") %>%
-
   bold(i = bold_rader, part = "body") %>%
   bold(part = "header") %>%
-
   italic(i = ~ grepl("^  ", Variabel), j = "Variabel") %>%
-
-  # Kolonnebredder tilpasset én side (A4 med smale marger)
   width(j = "Variabel", width = 3.2) %>%
   width(j = c("Digital", "Stedlig", "Totalt"), width = 1.6) %>%
-
   align(j = c("Digital", "Stedlig", "Totalt"), align = "center", part = "all") %>%
   align(j = "Variabel", align = "left", part = "all") %>%
-
-  # Reduser cellehøyde for å spare plass
   padding(padding.top = 1, padding.bottom = 1, part = "body") %>%
   padding(padding.top = 3, padding.bottom = 3, part = "header") %>%
-
   fontsize(size = 9, part = "all") %>%
   font(fontname = "Times New Roman", part = "all") %>%
   bg(bg = "white", part = "all") %>%
-
   set_table_properties(layout = "fixed") %>%
-
   add_footer_lines(paste0(
     "a Kategoriene er ikke gjensidig utelukkende; en deltaker kan ha mottatt ",
     "flere behandlingstyper. ",
     "SD = standardavvik; LBM = lean body mass (mager kroppsmasse). ",
     "For n = 6 deltakere der kroppen oversteg m\u00e5leomr\u00e5det til DXA-maskinen, ",
-    "ble offset-scanning benyttet med programvareestimert venstreside, ",
-    "i tr\u00e5d med International Society for Clinical Densitometry (ISCD, 2023)."
+    "ble offset-scanning benyttet med programvareestimert venstreside, i tr\u00e5d med ",
+    "International Society for Clinical Densitometry (ISCD, 2023)."
   )) %>%
   italic(part = "footer") %>%
   fontsize(size = 8, part = "footer") %>%
   font(fontname = "Times New Roman", part = "footer")
 
-# Vis i RStudio Viewer
 print(ft)
 
-# Eksporter til Word med smale marger for å få tabellen på én side
 seksjon <- prop_section(
   page_size    = page_size(width = 21 / 2.54, height = 29.7 / 2.54),
   page_margins = page_mar(top = 1.5 / 2.54, bottom = 1.5 / 2.54,
                           left = 2 / 2.54,   right = 2 / 2.54)
 )
 
-doc <- read_docx(
-  system.file("template/template.docx", package = "officer")
-) %>%
+doc <- read_docx(system.file("template/template.docx", package = "officer")) %>%
   body_set_default_section(seksjon) %>%
   body_add_flextable(ft)
 
