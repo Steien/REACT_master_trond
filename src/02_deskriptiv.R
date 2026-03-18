@@ -87,6 +87,13 @@ tabell[["kvinner"]] <- lag_rad("Kvinner, n (%)",
 # --- Aldersgrupper (WHO) ---
 # NB: eksakt alder er ikke tilgjengelig i datasettet, kun aldersgruppe
 tabell[["ald_header"]] <- lag_rad("Aldersgruppe (WHO), n (%)", "", "", "")
+ald_labels <- c(
+  "Unge voksne"   = "  Unge voksne (18\u201344 \u00e5r)",
+  "Middelaldrende" = "  Middelaldrende (45\u201359 \u00e5r)",
+  "Eldre voksne"  = "  Eldre voksne (60\u201374 \u00e5r)",
+  "Gamle eldre"   = "  Gamle eldre (75+ \u00e5r)"
+)
+
 for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
   d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
     mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
@@ -94,7 +101,7 @@ for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
     mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
   a <- bakgrunn_analyse %>% mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
   tabell[[paste0("ald_", grp)]] <- lag_rad(
-    paste0("  ", grp), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
+    ald_labels[grp], n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
 }
 
 # --- Kreftform ---
