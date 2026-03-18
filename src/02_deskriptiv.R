@@ -128,7 +128,7 @@ antro_s <- antro_pre %>%
 tabell[["vekt"]] <- lag_rad("Kroppsvekt, kg, gj.snitt (SD)",
   mean_sd(antro_d$vekt), mean_sd(antro_s$vekt), mean_sd(antro_pre$vekt))
 
-tabell[["hoyde"]] <- lag_rad("Høyde, cm, gj.snitt (SD)",
+tabell[["hoyde"]] <- lag_rad("H\u00f8yde, cm, gj.snitt (SD)",
   mean_sd(antro_d$høyde), mean_sd(antro_s$høyde),
   mean_sd(antro_pre$høyde))
 
