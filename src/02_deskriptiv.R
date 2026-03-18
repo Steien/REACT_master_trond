@@ -6,6 +6,7 @@
 
 library(dplyr)
 library(tidyr)
+library(readxl)
 
 # =============================================================================
 # Les inn data
@@ -118,6 +119,43 @@ for (kf in kreftformer) {
     paste0("  ", kf), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
 }
 
+# --- Behandlingstype (ikke gjensidig utelukkende) ---
+behandling_map <- c(
+  "Kreftbehandling.1" = "Cellegift",
+  "Kreftbehandling.2" = "Str\u00e5ling",
+  "Kreftbehandling.3" = "Immunterapi",
+  "Kreftbehandling.4" = "Kirurgi",
+  "Kreftbehandling.5" = "Stamcellebehandling",
+  "Kreftbehandling.6" = "Legemidler",
+  "Kreftbehandling.7" = "Annet"
+)
+
+# Les behandlingskolonner fra rådata og koble til analysegruppen
+bakgrunn_raw_beh <- read_excel(
+  "data/raw/REACT_data_til_studenter.xlsx",
+  sheet = "Bakgrunn", skip = 1
+) %>%
+  mutate(fp = as.integer(fp)) %>%
+  filter(fp %in% fp_analyse, !is.na(fp)) %>%
+  select(fp, all_of(names(behandling_map)))
+
+beh_data <- bakgrunn_analyse %>%
+  select(fp, treatment) %>%
+  left_join(bakgrunn_raw_beh, by = "fp")
+
+tabell[["beh_header"]] <- lag_rad("Behandlingstype, n (%)a", "", "", "")
+
+for (kol in names(behandling_map)) {
+  navn <- behandling_map[kol]
+  d <- beh_data %>% filter(treatment == "digital") %>%
+    mutate(x = .data[[kol]] == 1) %>% pull(x)
+  s <- beh_data %>% filter(treatment == "stedlig") %>%
+    mutate(x = .data[[kol]] == 1) %>% pull(x)
+  a <- beh_data %>% mutate(x = .data[[kol]] == 1) %>% pull(x)
+  tabell[[paste0("beh_", kol)]] <- lag_rad(
+    paste0("  ", navn), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
+}
+
 # --- Dager siden siste behandling ---
 dag_dig <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
   pull(dager_siden_behandling)
@@ -185,36 +223,45 @@ write.csv(tabell1, "output/tables/tabell1_baseline.csv",
 # Radrekkefølge etter bind_rows:
 # 1:  n
 # 2:  Kvinner
-# 3:  Aldersgruppe (WHO) — seksjonslabel (bold)
-# 4:    Unge voksne
-# 5:    Middelaldrende
-# 6:    Eldre voksne
-# 7:    Gamle eldre
-# 8:  Kreftform — seksjonslabel (bold)
-# 9:    Blodkreft
-# 10:   Brystkreft
-# 11:   Gynkreft
-# 12:   Lungekreft
-# 13:   Lymfekreft
-# 14:   Mage-tarmkreft
-# 15:   Melanom
-# 16:   Munn og svelg
-# 17:   Prostata
-# 18: Dager siden siste behandling
-# 19: Kroppsvekt
-# 20: Høyde
-# 21: BMI
-# 22: Midjeomkrets
-# 23: Mager masse (LBM)
-# 24: Total fettmasse
-# 25: Total fettprosent
+# 3:  Aldersgruppe (WHO), n (%) — bold
+# 4:    Unge voksne (18–44 år)
+# 5:    Middelaldrende (45–59 år)
+# 6:    Eldre voksne (60–74 år)
+# 7:    Gamle eldre (75+ år)
+# 8:  Kreftform, n (%) — bold
+# 9:    Blodkreft ... 17: Prostata
+# 18: Behandlingstype, n (%)a — bold
+# 19:   Cellegift ... 25: Annet
+# 26: Dager siden siste behandling
+# 27: Kroppsvekt
+# 28: Høyde
+# 29: BMI
+# 30: Midjeomkrets
+# 31: Mager masse (LBM)
+# 32: Total fettmasse
+# 33: Total fettprosent
 
 thin  <- fp_border(color = "grey60", width = 0.5)
 thick <- fp_border(color = "black",  width = 1.0)
 
+# Finn radnummer for seksjonslabeler dynamisk
+bold_rader <- which(tabell1$Variabel %in% c(
+  "Aldersgruppe (WHO), n (%)",
+  "Kreftform, n (%)",
+  "Behandlingstype, n (%)a"
+))
+
+# Finn radnummer for seksjonsgrenser (linjer går ETTER disse radene)
+linje_etter <- c(
+  which(tabell1$Variabel == "Kvinner, n (%)"),            # etter kvinner
+  which(tabell1$Variabel == "  Gamle eldre (75\u00e5r)"), # etter aldersgrupper
+  which(grepl("Prostata", tabell1$Variabel)),             # etter kreftform
+  which(grepl("Annet", tabell1$Variabel)),                # etter behandlingstype
+  which(grepl("Midjeomkrets", tabell1$Variabel))          # etter antropometri
+)
+
 ft <- flextable(tabell1) %>%
 
-  # Kolonneoverskrifter
   set_header_labels(
     Variabel = "",
     Digital  = paste0("Digital hjemmetrening\n(n=", n_dig, ")"),
@@ -222,58 +269,61 @@ ft <- flextable(tabell1) %>%
     Totalt   = paste0("Totalt\n(n=", n_tot, ")")
   ) %>%
 
-  # Tittel over tabellen
-  add_header_lines("Tabell 1. Baseline-karakteristikker fordelt på gruppe") %>%
+  add_header_lines("Tabell 1. Baseline-karakteristikker fordelt p\u00e5 gruppe") %>%
 
-  # Tykk linje øverst og nederst, tynn under kolonneoverskrift
   hline_top(border = thick, part = "header") %>%
-  hline_bottom(border = thin, part = "header") %>%
+  hline_bottom(border = thin,  part = "header") %>%
   hline_bottom(border = thick, part = "body") %>%
+  hline(i = linje_etter, border = thin, part = "body") %>%
 
-  # Tynne skillelinjer mellom seksjoner
-  hline(i = c(2, 7, 17, 22), border = thin, part = "body") %>%
-
-  # Fet skrift på seksjonslabeler (rad 3 og 8)
-  bold(i = c(3, 8), part = "body") %>%
+  bold(i = bold_rader, part = "body") %>%
   bold(part = "header") %>%
 
-  # Kursiv på innrykk-rader
   italic(i = ~ grepl("^  ", Variabel), j = "Variabel") %>%
 
-  # Kolonnebredder
-  width(j = "Variabel", width = 3.5) %>%
-  width(j = c("Digital", "Stedlig", "Totalt"), width = 1.8) %>%
+  # Kolonnebredder tilpasset én side (A4 med smale marger)
+  width(j = "Variabel", width = 3.2) %>%
+  width(j = c("Digital", "Stedlig", "Totalt"), width = 1.6) %>%
 
-  # Midtstill tallkolonner
   align(j = c("Digital", "Stedlig", "Totalt"), align = "center", part = "all") %>%
   align(j = "Variabel", align = "left", part = "all") %>%
 
-  # Skriftstørrelse og font
-  fontsize(size = 10, part = "all") %>%
-  font(fontname = "Times New Roman", part = "all") %>%
+  # Reduser cellehøyde for å spare plass
+  padding(padding.top = 1, padding.bottom = 1, part = "body") %>%
+  padding(padding.top = 3, padding.bottom = 3, part = "header") %>%
 
-  # Fjern all bakgrunnsfarge (ren hvit tabell)
+  fontsize(size = 9, part = "all") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
   bg(bg = "white", part = "all") %>%
 
-  set_table_properties(layout = "autofit") %>%
+  set_table_properties(layout = "fixed") %>%
 
-  # Fotnote under tabellen
   add_footer_lines(paste0(
+    "a Kategoriene er ikke gjensidig utelukkende; en deltaker kan ha mottatt ",
+    "flere behandlingstyper. ",
     "SD = standardavvik; LBM = lean body mass (mager kroppsmasse). ",
     "For n = 6 deltakere der kroppen oversteg m\u00e5leomr\u00e5det til DXA-maskinen, ",
     "ble offset-scanning benyttet med programvareestimert venstreside, ",
     "i tr\u00e5d med International Society for Clinical Densitometry (ISCD, 2023)."
   )) %>%
   italic(part = "footer") %>%
-  fontsize(size = 9, part = "footer") %>%
+  fontsize(size = 8, part = "footer") %>%
   font(fontname = "Times New Roman", part = "footer")
 
 # Vis i RStudio Viewer
 print(ft)
 
-# Eksporter til Word
-doc <- read_docx() %>%
-  body_add_par("", style = "Normal") %>%
+# Eksporter til Word med smale marger for å få tabellen på én side
+seksjon <- prop_section(
+  page_size    = page_size(width = 21 / 2.54, height = 29.7 / 2.54),
+  page_margins = page_mar(top = 1.5 / 2.54, bottom = 1.5 / 2.54,
+                          left = 2 / 2.54,   right = 2 / 2.54)
+)
+
+doc <- read_docx(
+  system.file("template/template.docx", package = "officer")
+) %>%
+  body_set_default_section(seksjon) %>%
   body_add_flextable(ft)
 
 print(doc, target = "output/tables/tabell1_baseline.docx")
