@@ -21,13 +21,13 @@ bak <- bakgrunn %>%
     # fp 80: registrert dropout, men har begge DXA-scanner -> fullfort
     # fp 77: ikke registrert dropout, men mangler post-scan -> kan ikke inkluderes
     dropout_lgl = case_when(
-      fp == 80 ~ FALSE,
-      fp == 77 ~ TRUE,
+      fp == 80 ~ FALSE,  # registrert dropout, men har begge DXA-scanner -> fullfort
+      fp == 77 ~ TRUE,   # mangler post-scan -> dropout
+      fp == 45 ~ FALSE,  # scanner byttet med fp 46 -> fullfort med gyldig DXA
+      fp == 46 ~ TRUE,   # scanner byttet med fp 45 -> dropout
       TRUE     ~ dropout_lgl
     ),
-    # fp 45: dropout med "begge" scanner, men post-scan er egentlig fp 46 sin
-    #        pre-scan feilregistrert -> ekskluderes fra analyse
-    dxa_komplett = fp %in% fp_dxa & fp != 45
+    dxa_komplett = fp %in% fp_dxa
   )
 
 arm_stats <- bak %>%
@@ -154,15 +154,14 @@ df$komplett[(nd_dig + 1):n_dig]             <- df$id[(nd_dig + 1):n_dig]
 df$komplett[(n_dig + nd_sted + 1):N_rct]   <- df$id[(n_dig + nd_sted + 1):N_rct]
 
 # --- anal: mangler DXA (side-boks) ---
-# Digital: fp 38 = DXA-maskin sviktet (mangler pre-scan)
-#          fp 46 = pre-scan feilregistrert (mangler gyldig pre-scan)
-# Stedlig: fp 26 og fp 94 = DXA-maskin sviktet (mangler pre-scan)
+# Digital: fp 38 = DXA-maskin, teknisk feil (mangler pre-scan)
+# Stedlig: fp 26 og fp 94 = DXA-maskin, teknisk feil (mangler pre-scan)
 df$anal <- NA_character_
 
 if (n_miss_dig > 0) {
   s <- nd_dig + na_dig + 1
-  df$anal[s]     <- "Mangler pre-scan (DXA-maskin, teknisk feil)"
-  df$anal[s + 1] <- "Mangler pre-scan (ukjent \u00E5rsak)"
+  e <- s + n_miss_dig - 1
+  df$anal[s:e] <- "Mangler pre-scan (DXA-maskin, teknisk feil)"
 }
 
 if (n_miss_sted > 0) {
