@@ -350,3 +350,111 @@ doc <- read_docx() %>%
 
 print(doc, target = "output/tables/tabell1_baseline.docx")
 cat("Lagret: output/tables/tabell1_baseline.docx\n")
+
+
+# =============================================================================
+# Tabell 2: Etterlevelse
+# =============================================================================
+
+opm_raw <- read_excel(
+  "data/raw/REACT_data_til_studenter.xlsx",
+  sheet = "Oppm\u00f8te", skip = 1
+)
+
+opm <- opm_raw %>%
+  mutate(fp = as.integer(suppressWarnings(as.numeric(gsub("^FP", "", fp))))) %>%
+  filter(!is.na(fp), fp %in% fp_analyse) %>%
+  select(fp,
+         gruppe  = `group    week`,
+         n_yes   = `...28`,
+         n_no    = `...29`,
+         pct_str = `...30`) %>%
+  mutate(
+    n_yes = as.integer(suppressWarnings(as.numeric(n_yes))),
+    pct   = suppressWarnings(as.numeric(pct_str))
+  ) %>%
+  left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp") %>%
+  # Behold kun raden som matcher behandlingsgruppe (FP35 har to rader)
+  filter(
+    (gruppe == "rand-digital" & treatment == "digital") |
+    (gruppe %in% c("rand-onsite", "rand-stedlig") & treatment == "stedlig") |
+    is.na(gruppe)
+  ) %>%
+  distinct(fp, .keep_all = TRUE)
+
+cat("\nEtterlevelse n:", nrow(opm), " NA pct:", sum(is.na(opm$pct)), "\n")
+
+mean_sd_pct <- function(x) {
+  x <- x[!is.na(x)]
+  sprintf("%.1f (%.1f)", mean(x), sd(x))
+}
+med_iqr_pct <- function(x) {
+  x <- x[!is.na(x)]
+  sprintf("%.1f\n(%.1f\u2013%.1f)",
+          median(x), quantile(x, 0.25), quantile(x, 0.75))
+}
+
+opm_d <- opm %>% filter(treatment == "digital") %>% pull(pct)
+opm_s <- opm %>% filter(treatment == "stedlig")  %>% pull(pct)
+opm_a <- opm$pct
+
+n_d_opm <- sum(!is.na(opm_d))
+n_s_opm <- sum(!is.na(opm_s))
+n_a_opm <- sum(!is.na(opm_a))
+
+p_etterlevelse <- p_wilcox(opm_a, opm$treatment)
+
+etterlevelse_tabell <- bind_rows(
+  lag_rad(
+    paste0("Gj.snitt (SD), %"),
+    mean_sd_pct(opm_d), mean_sd_pct(opm_s), mean_sd_pct(opm_a),
+    p_etterlevelse
+  ),
+  lag_rad(
+    "Median (25.\u201375. persentil), %",
+    med_iqr_pct(opm_d), med_iqr_pct(opm_s), med_iqr_pct(opm_a),
+    ""
+  )
+)
+
+ft2 <- flextable(etterlevelse_tabell) %>%
+  set_header_labels(
+    Variabel = "",
+    Digital  = paste0("Digital\n(n=", n_d_opm, ")"),
+    Stedlig  = paste0("Stedlig\n(n=", n_s_opm, ")"),
+    Totalt   = paste0("Totalt\n(n=", n_a_opm, ")"),
+    p        = "p-verdi"
+  ) %>%
+  border_remove() %>%
+  hline_top(border = thick, part = "header") %>%
+  hline_bottom(border = thin,  part = "header") %>%
+  hline_bottom(border = thick, part = "body") %>%
+  bold(part = "header") %>%
+  width(j = "Variabel", width = 2.9) %>%
+  width(j = c("Digital", "Stedlig", "Totalt"), width = 0.9) %>%
+  width(j = "p", width = 0.7) %>%
+  align(j = c("Digital", "Stedlig", "Totalt", "p"), align = "center", part = "all") %>%
+  align(j = "Variabel", align = "left", part = "all") %>%
+  padding(padding.top = 3, padding.bottom = 3, part = "all") %>%
+  fontsize(size = 10, part = "all") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  bg(bg = "white", part = "all") %>%
+  set_table_properties(layout = "fixed")
+
+note2_text <- paste0(
+  "Etterlevelse er beregnet som andel gjennomf\u00f8rte \u00f8kter av totalt 24 planlagte \u00f8kter ",
+  "(2 \u00f8kter per uke \u00d7 12 uker). ",
+  "P-verdi er beregnet med Wilcoxon rank-sum test. ",
+  "3 deltakere mangler oppm\u00f8teregistrering og er ikke inkludert i beregningen."
+)
+
+doc2 <- read_docx() %>%
+  body_add_fpar(fpar(ftext(
+    "Tabell 5. Etterlevelse",
+    title_style
+  ))) %>%
+  body_add_flextable(ft2) %>%
+  body_add_fpar(fpar(ftext(note2_text, note_style)))
+
+print(doc2, target = "output/tables/tabell5_etterlevelse.docx")
+cat("Lagret: output/tables/tabell5_etterlevelse.docx\n")
