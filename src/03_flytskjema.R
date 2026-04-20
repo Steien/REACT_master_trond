@@ -116,8 +116,7 @@ df <- data.frame(id = seq_len(N_kontakt))
 
 # --- exc1: Ikke screenet (side-boks) ---
 df$exc1 <- NA_character_
-df$exc1[(N_screenet + 1):N_kontakt] <-
-  paste0("Ikke kontaktet tilbake (n=", N_kontakt - N_screenet, ")")
+df$exc1[(N_screenet + 1):N_kontakt] <- "Ikke kontaktet tilbake"
 
 # --- screenet: main-boks etter exc1 ---
 df$screenet <- NA_integer_
@@ -126,7 +125,7 @@ df$screenet[1:N_screenet] <- df$id[1:N_screenet]
 # --- exc2: Ekskludert etter screening (side-boks) ---
 df$exc2 <- NA_character_
 df$exc2[(N_inkludert + 1):N_screenet] <-
-  "Oppfylte ikke inklusjonskriterier"
+  "Oppfylte ikke inklusjons- eller eksklusjonskriterier"
 
 # --- inkludert: main-boks etter exc2 ---
 df$inkludert <- NA_integer_
@@ -135,8 +134,7 @@ df$inkludert[1:N_inkludert] <- df$id[1:N_inkludert]
 # --- exc3: Allokert til kohorte (side-boks) ---
 df$exc3 <- NA_character_
 df$exc3[(N_rct + 1):N_inkludert] <-
-  paste0("Allokert til kohortestudie\n(ikke analysert i denne oppgaven)\n(n=",
-         N_kohorte, ")")
+  "Allokert til kohortestudie\n(ikke analysert i denne oppgaven)"
 
 # --- arm: randomisering / allokering (main-boks, allocation-variabel) ---
 df$arm <- NA_character_

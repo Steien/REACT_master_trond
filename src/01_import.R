@@ -15,7 +15,7 @@ library(dplyr)
 # DEL 1: DXA-data (din egen fil)
 # =============================================================================
 
-dxa_raw <- read_excel("data/raw/DXA_data.xlsx")
+dxa_raw <- read_excel("data/raw/DXA_data_20242025.xlsx")
 
 # Handter deltakere som var for brede for DXA-maskinen:
 # - type = "f": full scan, brukes direkte
@@ -32,6 +32,7 @@ dxa_clean <- dxa_raw %>%
   ) %>%
   mutate(
     id              = as.integer(id),
+    year            = as.integer(year),
     time            = factor(time, levels = c("pre", "post")),
     sex             = factor(sex, levels = c("f", "m"),
                              labels = c("Kvinne", "Mann")),
@@ -136,12 +137,12 @@ antropometri_clean <- antropometri_raw %>%
   ) %>%
   filter(!is.na(fp)) %>%
   mutate(
-    fp    = as.integer(suppressWarnings(as.numeric(fp))),
+    fp    = as.integer(suppressWarnings(as.numeric(gsub("^FP", "", fp)))),
     test  = tolower(trimws(test)),
     vekt  = suppressWarnings(as.numeric(vekt)),
     hoyde = suppressWarnings(as.numeric(hoyde)),
     bmi   = suppressWarnings(as.numeric(bmi)),
-    midje = suppressWarnings(as.numeric(midje))
+    midje = suppressWarnings(as.numeric(gsub("[^0-9.]", "", midje)))
   ) %>%
   filter(!is.na(fp))
 
