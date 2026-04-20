@@ -445,7 +445,7 @@ note2_text <- paste0(
   "Etterlevelse er beregnet som andel gjennomf\u00f8rte \u00f8kter av totalt 24 planlagte \u00f8kter ",
   "(2 \u00f8kter per uke \u00d7 12 uker). ",
   "P-verdi er beregnet med Wilcoxon rank-sum test. ",
-  "3 deltakere mangler oppm\u00f8teregistrering og er ikke inkludert i beregningen."
+  "1 deltaker mangler oppm\u00f8teregistrering og er ikke inkludert i beregningen (n = 49)."
 )
 
 doc2 <- read_docx() %>%
