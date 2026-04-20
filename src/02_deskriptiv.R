@@ -382,6 +382,19 @@ opm <- opm_raw %>%
   ) %>%
   distinct(fp, .keep_all = TRUE)
 
+# FP 45 og FP 46 hadde byttet DXA-scans: gi FP 45 oppmote-verdien fra FP 46
+fp46_pct <- as.numeric(opm_raw %>%
+  mutate(fp_raw = as.integer(suppressWarnings(as.numeric(gsub("^FP", "", fp))))) %>%
+  filter(fp_raw == 46) %>%
+  pull(`...30`) %>% .[1])
+
+opm <- opm %>%
+  mutate(pct = case_when(
+    fp == 45 ~ fp46_pct,   # bruk FP 46 sitt oppmote
+    fp == 80 ~ NA_real_,   # ekskluder FP 80 (0 registrerte okter)
+    TRUE     ~ pct
+  ))
+
 cat("\nEtterlevelse n:", nrow(opm), " NA pct:", sum(is.na(opm$pct)), "\n")
 
 mean_sd_pct <- function(x) {
@@ -445,7 +458,7 @@ note2_text <- paste0(
   "Etterlevelse er beregnet som andel gjennomf\u00f8rte \u00f8kter av totalt 24 planlagte \u00f8kter ",
   "(2 \u00f8kter per uke \u00d7 12 uker). ",
   "P-verdi er beregnet med Wilcoxon rank-sum test. ",
-  "1 deltaker mangler oppm\u00f8teregistrering og er ikke inkludert i beregningen (n = 49)."
+  "2 deltakere er ekskludert fra etterlevelsesanalysen grunnet manglende eller ugyldig oppm\u00f8teregistrering (n = 48)."
 )
 
 doc2 <- read_docx() %>%
