@@ -246,28 +246,6 @@ tabell[["midje"]] <- lag_rad("  Midjeomkrets, cm",
   mean_sd(antro_d$midje), mean_sd(antro_s$midje), mean_sd(antro_pre$midje),
   p_wilcox(antro_grp$midje, antro_grp$treatment))
 
-# --- DXA-malinger (pre) ---
-dxa_d <- dxa_pre %>%
-  left_join(bakgrunn_rct %>% select(fp, treatment), by = c("id" = "fp")) %>%
-  filter(treatment == "digital")
-dxa_s <- dxa_pre %>%
-  left_join(bakgrunn_rct %>% select(fp, treatment), by = c("id" = "fp")) %>%
-  filter(treatment == "stedlig")
-
-tabell[["dxa_header"]] <- lag_rad(
-  "DXA-m\u00e5linger (pre), gj.snitt (SD)", "", "", "")
-dxa_grp <- dxa_pre %>%
-  left_join(bakgrunn_rct %>% select(fp, treatment), by = c("id" = "fp"))
-
-tabell[["lbm"]]      <- lag_rad("  Mager masse (LBM), g",
-  mean_sd_g(dxa_d$LBM),          mean_sd_g(dxa_s$LBM),          mean_sd_g(dxa_pre$LBM),
-  p_wilcox(dxa_grp$LBM,          dxa_grp$treatment))
-tabell[["fett_g"]]   <- lag_rad("  Total fettmasse, g",
-  mean_sd_g(dxa_d$fat_total_g),   mean_sd_g(dxa_s$fat_total_g),  mean_sd_g(dxa_pre$fat_total_g),
-  p_wilcox(dxa_grp$fat_total_g,   dxa_grp$treatment))
-tabell[["fett_pct"]] <- lag_rad("  Total fettprosent, %",
-  mean_sd(dxa_d$fat_total_pct), mean_sd(dxa_s$fat_total_pct), mean_sd(dxa_pre$fat_total_pct),
-  p_wilcox(dxa_grp$fat_total_pct, dxa_grp$treatment))
 
 
 # =============================================================================
@@ -287,8 +265,7 @@ bold_rader <- which(tabell1$Variabel %in% c(
   "Aldersgruppe (WHO), n (%)",
   "Kreftform, n (%)",
   "Behandlingstype, n (%)\u00b9",
-  "Antropometri (pre), gj.snitt (SD)",
-  "DXA-m\u00e5linger (pre), gj.snitt (SD)"
+  "Antropometri (pre), gj.snitt (SD)"
 ))
 
 linje_etter <- c(
@@ -302,10 +279,7 @@ linje_etter <- c(
 note_text <- paste0(
   "\u00b9 Kategoriene er ikke gjensidig utelukkende; en deltaker kan ha mottatt ",
   "flere behandlingstyper. ",
-  "SD = standardavvik; LBM = lean body mass (mager kroppsmasse). ",
-  "For n = 14 deltakere der kroppen oversteg m\u00e5leomr\u00e5det til DXA-maskinen, ",
-  "ble offset-scanning benyttet med programvareestimert venstreside, i tr\u00e5d med ",
-  "International Society for Clinical Densitometry (ISCD, 2023). ",
+  "SD = standardavvik. ",
   "P-verdier for kategoriske variabler er beregnet med Fisher\u2019s eksakte test; ",
   "for kontinuerlige variabler er Wilcoxon rank-sum test benyttet."
 )
