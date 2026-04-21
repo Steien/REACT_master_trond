@@ -21,12 +21,16 @@ dxa          <- readRDS("data/processed/dxa_clean.rds")
 
 fp_analyse       <- unique(dxa$id)
 bakgrunn_analyse <- bakgrunn %>% filter(fp %in% fp_analyse)
-antro_pre        <- antropometri %>% filter(fp %in% fp_analyse, test == "pre")
-dxa_pre          <- dxa %>% filter(id %in% fp_analyse, time == "pre")
 
-cat("Deltakere i analysen:", length(fp_analyse), "\n")
-cat("Gruppe digital:", sum(bakgrunn_analyse$treatment == "digital"), "\n")
-cat("Gruppe stedlig:", sum(bakgrunn_analyse$treatment == "stedlig"), "\n\n")
+# Alle randomiserte RCT-deltakere (n=70, inkludert dropout og manglende DXA)
+bakgrunn_rct <- bakgrunn %>% filter(!is.na(treatment))
+antro_pre    <- antropometri %>% filter(fp %in% bakgrunn_rct$fp, test == "pre")
+dxa_pre      <- dxa %>% filter(id %in% fp_analyse, time == "pre")
+
+cat("Deltakere i analysen (komplett DXA):", length(fp_analyse), "\n")
+cat("Alle randomiserte RCT:", nrow(bakgrunn_rct), "\n")
+cat("Gruppe digital:", sum(bakgrunn_rct$treatment == "digital"), "\n")
+cat("Gruppe stedlig:", sum(bakgrunn_rct$treatment == "stedlig"), "\n\n")
 
 
 # =============================================================================
@@ -115,55 +119,55 @@ p_fisher_cat <- function(variabel, gruppe) {
 
 tabell <- list()
 
-n_dig <- sum(bakgrunn_analyse$treatment == "digital")
-n_ste <- sum(bakgrunn_analyse$treatment == "stedlig")
-n_tot <- nrow(bakgrunn_analyse)
+n_dig <- sum(bakgrunn_rct$treatment == "digital")
+n_ste <- sum(bakgrunn_rct$treatment == "stedlig")
+n_tot <- nrow(bakgrunn_rct)
 
 # --- Antall ---
 tabell[["n"]] <- lag_rad("n",
   as.character(n_dig), as.character(n_ste), as.character(n_tot))
 
 # --- Kjonn ---
-kjonn_dig_k <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
+kjonn_dig_k <- bakgrunn_rct %>% filter(treatment == "digital") %>%
   mutate(x = kjonn == "Kvinne") %>% pull(x)
-kjonn_ste_k <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
+kjonn_ste_k <- bakgrunn_rct %>% filter(treatment == "stedlig") %>%
   mutate(x = kjonn == "Kvinne") %>% pull(x)
-kjonn_all_k <- bakgrunn_analyse %>%
+kjonn_all_k <- bakgrunn_rct %>%
   mutate(x = kjonn == "Kvinne") %>% pull(x)
 tabell[["kvinner"]] <- lag_rad("Kvinner, n (%)",
   n_pct(kjonn_dig_k, n_dig), n_pct(kjonn_ste_k, n_ste),
   n_pct(kjonn_all_k, n_tot),
-  p_fisher_bin(kjonn_all_k, bakgrunn_analyse$treatment))
+  p_fisher_bin(kjonn_all_k, bakgrunn_rct$treatment))
 
 # --- Aldersgrupper (WHO) ---
 tabell[["ald_header"]] <- lag_rad("Aldersgruppe (WHO), n (%)", "", "", "",
-  p_fisher_cat(bakgrunn_analyse$aldersgruppe_WHO, bakgrunn_analyse$treatment))
+  p_fisher_cat(bakgrunn_rct$aldersgruppe_WHO, bakgrunn_rct$treatment))
 ald_labels <- c(
   "Unge voksne"    = "  Unge voksne (18\u201344 \u00e5r)",
   "Middelaldrende" = "  Middelaldrende (45\u201359 \u00e5r)",
   "Eldre voksne"   = "  Eldre voksne (60\u201374 \u00e5r)",
   "Gamle eldre"    = "  Gamle eldre (75+ \u00e5r)"
 )
-for (grp in levels(bakgrunn_analyse$aldersgruppe_WHO)) {
-  d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
+for (grp in levels(bakgrunn_rct$aldersgruppe_WHO)) {
+  d <- bakgrunn_rct %>% filter(treatment == "digital") %>%
     mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
-  s <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
+  s <- bakgrunn_rct %>% filter(treatment == "stedlig") %>%
     mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
-  a <- bakgrunn_analyse %>% mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
+  a <- bakgrunn_rct %>% mutate(x = aldersgruppe_WHO == grp) %>% pull(x)
   tabell[[paste0("ald_", grp)]] <- lag_rad(
     ald_labels[grp], n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
 }
 
 # --- Kreftform ---
 tabell[["kf_header"]] <- lag_rad("Kreftform, n (%)", "", "", "",
-  p_fisher_cat(bakgrunn_analyse$kreftform, bakgrunn_analyse$treatment))
-kreftformer <- sort(unique(na.omit(bakgrunn_analyse$kreftform)))
+  p_fisher_cat(bakgrunn_rct$kreftform, bakgrunn_rct$treatment))
+kreftformer <- sort(unique(na.omit(bakgrunn_rct$kreftform)))
 for (kf in kreftformer) {
-  d <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
+  d <- bakgrunn_rct %>% filter(treatment == "digital") %>%
     mutate(x = kreftform == kf) %>% pull(x)
-  s <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
+  s <- bakgrunn_rct %>% filter(treatment == "stedlig") %>%
     mutate(x = kreftform == kf) %>% pull(x)
-  a <- bakgrunn_analyse %>% mutate(x = kreftform == kf) %>% pull(x)
+  a <- bakgrunn_rct %>% mutate(x = kreftform == kf) %>% pull(x)
   tabell[[paste0("kf_", kf)]] <- lag_rad(
     paste0("  ", kf), n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
 }
@@ -186,11 +190,11 @@ bakgrunn_raw_beh <- read_excel(
   "data/raw/REACT_data_til_studenter.xlsx",
   sheet = "Bakgrunn", skip = 1
 ) %>%
-  mutate(fp = as.integer(fp)) %>%
-  filter(fp %in% fp_analyse, !is.na(fp)) %>%
+  mutate(fp = as.integer(suppressWarnings(as.numeric(fp)))) %>%
+  filter(fp %in% bakgrunn_rct$fp, !is.na(fp)) %>%
   select(fp, all_of(names(behandling_map)))
 
-beh_data <- bakgrunn_analyse %>%
+beh_data <- bakgrunn_rct %>%
   select(fp, treatment) %>%
   left_join(bakgrunn_raw_beh, by = "fp")
 
@@ -206,28 +210,28 @@ for (kol in names(behandling_map)) {
 }
 
 # --- Dager siden siste behandling (plassert etter behandlingstype) ---
-dag_dig <- bakgrunn_analyse %>% filter(treatment == "digital") %>%
+dag_dig <- bakgrunn_rct %>% filter(treatment == "digital") %>%
   pull(dager_siden_behandling)
-dag_ste <- bakgrunn_analyse %>% filter(treatment == "stedlig") %>%
+dag_ste <- bakgrunn_rct %>% filter(treatment == "stedlig") %>%
   pull(dager_siden_behandling)
 tabell[["dager"]] <- lag_rad(
   "Dager siden siste behandling, gj.snitt (SD)",
   mean_sd(dag_dig), mean_sd(dag_ste),
-  mean_sd(bakgrunn_analyse$dager_siden_behandling),
-  p_wilcox(bakgrunn_analyse$dager_siden_behandling, bakgrunn_analyse$treatment))
+  mean_sd(bakgrunn_rct$dager_siden_behandling),
+  p_wilcox(bakgrunn_rct$dager_siden_behandling, bakgrunn_rct$treatment))
 
 # --- Antropometri (pre) ---
 antro_d <- antro_pre %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp") %>%
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = "fp") %>%
   filter(treatment == "digital")
 antro_s <- antro_pre %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp") %>%
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = "fp") %>%
   filter(treatment == "stedlig")
 
 tabell[["antro_header"]] <- lag_rad(
   "Antropometri (pre), gj.snitt (SD)", "", "", "")
 antro_grp <- antro_pre %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp")
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = "fp")
 
 tabell[["vekt"]]  <- lag_rad("  Kroppsvekt, kg",
   mean_sd(antro_d$vekt),  mean_sd(antro_s$vekt),  mean_sd(antro_pre$vekt),
@@ -244,16 +248,16 @@ tabell[["midje"]] <- lag_rad("  Midjeomkrets, cm",
 
 # --- DXA-malinger (pre) ---
 dxa_d <- dxa_pre %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = c("id" = "fp")) %>%
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = c("id" = "fp")) %>%
   filter(treatment == "digital")
 dxa_s <- dxa_pre %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = c("id" = "fp")) %>%
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = c("id" = "fp")) %>%
   filter(treatment == "stedlig")
 
 tabell[["dxa_header"]] <- lag_rad(
   "DXA-m\u00e5linger (pre), gj.snitt (SD)", "", "", "")
 dxa_grp <- dxa_pre %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = c("id" = "fp"))
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = c("id" = "fp"))
 
 tabell[["lbm"]]      <- lag_rad("  Mager masse (LBM), g",
   mean_sd_g(dxa_d$LBM),          mean_sd_g(dxa_s$LBM),          mean_sd_g(dxa_pre$LBM),
@@ -363,7 +367,7 @@ opm_raw <- read_excel(
 
 opm <- opm_raw %>%
   mutate(fp = as.integer(suppressWarnings(as.numeric(gsub("^FP", "", fp))))) %>%
-  filter(!is.na(fp), fp %in% fp_analyse) %>%
+  filter(!is.na(fp), fp %in% bakgrunn_rct$fp) %>%
   select(fp,
          gruppe  = `group    week`,
          n_yes   = `...28`,
@@ -373,7 +377,7 @@ opm <- opm_raw %>%
     n_yes = as.integer(suppressWarnings(as.numeric(n_yes))),
     pct   = suppressWarnings(as.numeric(pct_str))
   ) %>%
-  left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp") %>%
+  left_join(bakgrunn_rct %>% select(fp, treatment), by = "fp") %>%
   # Behold kun raden som matcher behandlingsgruppe (FP35 har to rader)
   filter(
     (gruppe == "rand-digital" & treatment == "digital") |
