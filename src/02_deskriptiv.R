@@ -1,8 +1,8 @@
 # =============================================================================
 # 02_deskriptiv.R
 # Deskriptiv statistikk og Tabell 1 -- baseline-karakteristikker per gruppe
-# Output: output/tables/tabell1_baseline.csv
-#         output/tables/tabell1_baseline.docx
+# Output: output/tables/tabell4_baseline.csv
+#         output/tables/tabell4_baseline.docx
 # =============================================================================
 
 library(dplyr)
@@ -272,7 +272,7 @@ tabell[["fett_pct"]] <- lag_rad("  Total fettprosent, %",
 
 tabell1 <- bind_rows(tabell)
 
-write.csv(tabell1, "output/tables/tabell1_baseline.csv",
+write.csv(tabell1, "output/tables/tabell4_baseline.csv",
           row.names = FALSE, fileEncoding = "UTF-8")
 
 thin  <- fp_border(color = "grey60", width = 0.5)
@@ -348,8 +348,8 @@ doc <- read_docx() %>%
   body_add_flextable(ft) %>%
   body_add_fpar(fpar(ftext(note_text, note_style)))
 
-print(doc, target = "output/tables/tabell1_baseline.docx")
-cat("Lagret: output/tables/tabell1_baseline.docx\n")
+print(doc, target = "output/tables/tabell4_baseline.docx")
+cat("Lagret: output/tables/tabell4_baseline.docx\n")
 
 
 # =============================================================================
