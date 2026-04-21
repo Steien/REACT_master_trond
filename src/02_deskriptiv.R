@@ -342,7 +342,7 @@ note_style  <- fp_text(font.size = 8,  italic = TRUE, font.family = "Times New R
 
 doc <- read_docx() %>%
   body_add_fpar(fpar(ftext(
-    "Tabell 1. Baseline-karakteristikker fordelt p\u00e5 gruppe",
+    "Tabell 4. Baseline-karakteristikker fordelt p\u00e5 gruppe",
     title_style
   ))) %>%
   body_add_flextable(ft) %>%
