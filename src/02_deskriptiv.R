@@ -342,7 +342,7 @@ opm_raw <- read_excel(
 
 opm <- opm_raw %>%
   mutate(fp = as.integer(suppressWarnings(as.numeric(gsub("^FP", "", fp))))) %>%
-  filter(!is.na(fp), fp %in% bakgrunn_rct$fp) %>%
+  filter(!is.na(fp), fp %in% fp_analyse) %>%
   select(fp,
          gruppe  = `group    week`,
          n_yes   = `...28`,
@@ -352,7 +352,7 @@ opm <- opm_raw %>%
     n_yes = as.integer(suppressWarnings(as.numeric(n_yes))),
     pct   = suppressWarnings(as.numeric(pct_str))
   ) %>%
-  left_join(bakgrunn_rct %>% select(fp, treatment), by = "fp") %>%
+  left_join(bakgrunn_analyse %>% select(fp, treatment), by = "fp") %>%
   # Behold kun raden som matcher behandlingsgruppe (FP35 har to rader)
   filter(
     (gruppe == "rand-digital" & treatment == "digital") |
