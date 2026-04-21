@@ -282,7 +282,7 @@ note_text <- paste0(
   "SD = standardavvik. ",
   "P-verdier for kategoriske variabler er beregnet med Fisher\u2019s eksakte test; ",
   "for kontinuerlige variabler er Wilcoxon rank-sum test benyttet. ",
-  "\u00b2 Antropometri ved pre-test mangler for \u00e9n deltaker (FP 27); n = 69 for disse radene."
+  "\u00b2 Antropometri ved pre-test mangler for \u00e9n deltaker; n = 69 for disse radene."
 )
 
 ft <- flextable(tabell1) %>%
