@@ -229,7 +229,7 @@ antro_s <- antro_pre %>%
   filter(treatment == "stedlig")
 
 tabell[["antro_header"]] <- lag_rad(
-  "Antropometri (pre), gj.snitt (SD)", "", "", "")
+  "Antropometri (pre), gj.snitt (SD)\u00b2", "", "", "")
 antro_grp <- antro_pre %>%
   left_join(bakgrunn_rct %>% select(fp, treatment), by = "fp")
 
@@ -265,7 +265,7 @@ bold_rader <- which(tabell1$Variabel %in% c(
   "Aldersgruppe (WHO), n (%)",
   "Kreftform, n (%)",
   "Behandlingstype, n (%)\u00b9",
-  "Antropometri (pre), gj.snitt (SD)"
+  "Antropometri (pre), gj.snitt (SD)\u00b2"
 ))
 
 linje_etter <- c(
@@ -281,7 +281,8 @@ note_text <- paste0(
   "flere behandlingstyper. ",
   "SD = standardavvik. ",
   "P-verdier for kategoriske variabler er beregnet med Fisher\u2019s eksakte test; ",
-  "for kontinuerlige variabler er Wilcoxon rank-sum test benyttet."
+  "for kontinuerlige variabler er Wilcoxon rank-sum test benyttet. ",
+  "\u00b2 Antropometri ved pre-test mangler for \u00e9n deltaker (FP 27); n = 69 for disse radene."
 )
 
 ft <- flextable(tabell1) %>%
