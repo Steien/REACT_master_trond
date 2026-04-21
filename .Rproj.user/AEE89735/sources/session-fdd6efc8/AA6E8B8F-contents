@@ -1,8 +1,0 @@
-
-
-
-
-
-## Gjenopprett miljø
-renv::restore()
-source("src/01_analyse.R")

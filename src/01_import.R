@@ -74,13 +74,22 @@ bakgrunn_raw <- read_excel(
   skip  = 1
 )
 
+# Korrigerte alderskategorier fra veileder (16.03.26)
+# Ny inndeling: unge voksne 1-40, middelaldrende 41-59
+ald_kor <- read_excel(
+  "data/raw/Alderskategorier til studenter 16.03.26.xlsx",
+  skip = 5
+) %>%
+  select(fp = fp, aldersgruppe_WHO = aldersgruppe_WHO_2026) %>%
+  filter(!is.na(fp), fp != "fp") %>%
+  mutate(fp = as.integer(suppressWarnings(as.numeric(fp))))
+
 bakgrunn_clean <- bakgrunn_raw %>%
   select(
     fp,
     aar                    = "\u00c5r",
     treatment,
     kjonn                  = "kj\u00f8nn",
-    aldersgruppe_WHO,
     round                  = "round (pilot, main_1, main_2)",
     dropout,
     kreftform              = Kreftform_forenklet_utkast,
@@ -93,6 +102,7 @@ bakgrunn_clean <- bakgrunn_raw %>%
     dropout                = !is.na(dropout) & dropout %in% c("y", "bytte"),
     dager_siden_behandling = suppressWarnings(as.numeric(dager_siden_behandling))
   ) %>%
+  left_join(ald_kor, by = "fp") %>%
   mutate(
     treatment        = factor(treatment, levels = c("digital", "stedlig")),
     kjonn            = factor(kjonn, levels = c("f", "m"),
