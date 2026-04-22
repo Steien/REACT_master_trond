@@ -47,6 +47,28 @@ dxa_clean <- dxa_raw %>%
     LBM             = suppressWarnings(as.numeric(LBM))
   )
 
+# Midlertidig korreksjon: FP 45 og FP 46 hadde byttet scans.
+# FP 45 korrekte verdier er hentet fra FP 46 i DEXA resultater 2025_07.04.26.xlsx.
+# Avventer endelig bekreftelse fra veileder.
+dxa_clean <- dxa_clean %>%
+  mutate(
+    LBM          = case_when(
+      id == 45 & time == "pre"  ~ 45460,
+      id == 45 & time == "post" ~ 45476,
+      TRUE ~ LBM
+    ),
+    fat_total_pct = case_when(
+      id == 45 & time == "pre"  ~ 34.4,
+      id == 45 & time == "post" ~ 33.8,
+      TRUE ~ fat_total_pct
+    ),
+    fat_total_g = case_when(
+      id == 45 & time == "pre"  ~ 23845,
+      id == 45 & time == "post" ~ 23168,
+      TRUE ~ fat_total_g
+    )
+  )
+
 # Behold kun FP som har BEGGE malinger (pre + post)
 fp_begge <- dxa_clean %>%
   group_by(id) %>%
