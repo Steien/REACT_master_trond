@@ -47,7 +47,7 @@ p_boks_lbm <- ggplot(dxa_wide, aes(x = treatment, y = endring_lbm, fill = treatm
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey40") +
   scale_fill_manual(values = farger) +
   labs(
-    title    = "Figur 1. Endring i mager masse (LBM)",
+    title    = "Figur 3. Endring i mager masse (LBM)",
     subtitle = "Pre til post per gruppe",
     x        = NULL,
     y        = "Endring i LBM (g)"
@@ -63,7 +63,7 @@ p_boks_fat <- ggplot(dxa_wide, aes(x = treatment, y = endring_fat, fill = treatm
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey40") +
   scale_fill_manual(values = farger) +
   labs(
-    title    = "Figur 3. Endring i total fettprosent",
+    title    = "Figur 5. Endring i total fettprosent",
     subtitle = "Pre til post per gruppe",
     x        = NULL,
     y        = "Endring i fettprosent (prosentpoeng)"
