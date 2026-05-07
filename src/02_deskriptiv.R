@@ -434,6 +434,7 @@ ft2 <- flextable(etterlevelse_tabell) %>%
   set_table_properties(layout = "fixed")
 
 note2_text <- paste0(
+  "Etterlevelse i den digitale og stedlige intervensjonsgruppen, presentert som prosent. ",
   "Etterlevelse er beregnet som andel gjennomf\u00f8rte \u00f8kter av totalt 24 planlagte \u00f8kter ",
   "(2 \u00f8kter per uke \u00d7 12 uker). ",
   "P-verdi er beregnet med Wilcoxon rank-sum test. ",
