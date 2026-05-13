@@ -1,8 +1,10 @@
 
 
-# Sensitive deltagerdata — skal IKKE på GitHub
-data/raw/
+# Genererte datafiler — reproduseres av 01_import.R
 data/processed/
+
+# Word midlertidige låsfiler
+~$*.docx
 
 # knitr and R markdown default cache directories
 *_cache/

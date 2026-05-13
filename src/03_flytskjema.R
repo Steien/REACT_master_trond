@@ -17,14 +17,17 @@ fp_dxa <- unique(dxa_clean$id)
 bak <- bakgrunn %>%
   mutate(
     dropout_lgl = as.logical(dropout),
-    # Manuelle korreksjoner (avventer endelig bekreftelse fra veileder):
-    # fp 80: registrert dropout, men har begge DXA-scanner -> fullfort
-    # fp 77: ikke registrert dropout, men mangler post-scan -> kan ikke inkluderes
+    # Manuelle korreksjoner bekreftet mot datasett og veileder:
+    # fp 80: flagget dropout i bakgrunnsdata, men har begge DXA-scanner -> fullfort
+    # fp 77: ikke flagget dropout, men har 0 DXA-rader i dxa_clean -> dropout
+    # fp 45: DXA-verdier byttet med fp 46 (radata LBM=58041 g er fysiologisk umulig);
+    #        korrigerte verdier brukes -> fullfort med gyldig DXA
+    # fp 46: mangler gyldig DXA etter korreksjon -> dropout
     dropout_lgl = case_when(
-      fp == 80 ~ FALSE,  # registrert dropout, men har begge DXA-scanner -> fullfort
-      fp == 77 ~ TRUE,   # mangler post-scan -> dropout
-      fp == 45 ~ FALSE,  # scanner byttet med fp 46 -> fullfort med gyldig DXA
-      fp == 46 ~ TRUE,   # scanner byttet med fp 45 -> dropout
+      fp == 80 ~ FALSE,  # verifisert: har begge DXA-scanner i dxa_clean
+      fp == 77 ~ TRUE,   # verifisert: 0 DXA-rader i dxa_clean
+      fp == 45 ~ FALSE,  # korrigerte DXA-verdier er gyldige (bekreftet av veileder)
+      fp == 46 ~ TRUE,   # mangler gyldig DXA etter korreksjon
       TRUE     ~ dropout_lgl
     ),
     dxa_komplett = fp %in% fp_dxa
@@ -49,9 +52,10 @@ nd_sted <- arm_stats$n_dropout     [arm_stats$treatment == "stedlig"]
 na_dig  <- arm_stats$n_fullfort_dxa[arm_stats$treatment == "digital"]
 na_sted <- arm_stats$n_fullfort_dxa[arm_stats$treatment == "stedlig"]
 
-N_kontakt   <- 183
-N_screenet  <- 166
-N_inkludert <- 119
+# Rekrutteringstall fra studiens rekrutteringslogg (2024 + 2025 samlet)
+N_kontakt   <- 183  # tok kontakt (114 i 2024, 69 i 2025)
+N_screenet  <- 166  # gjennomgikk screening (108 + 58)
+N_inkludert <- 119  # inkludert totalt (70 + 49; herav 70 RCT + 49 kohorte)
 N_rct       <- n_dig + n_sted
 N_kohorte   <- N_inkludert - N_rct
 
@@ -67,9 +71,12 @@ cat("Totalt RCT:", N_rct, "  Kohorte:", N_kohorte, "\n")
 
 # ============================================================
 # Dropout-arsaker per arm
-# NB: Per-arm-fordeling er ikke dokumentert i radata.
-#     Fordeling nedenfor er rimelig basert pa kjente totaler.
-#     Juster her nar endelige tall foreligger.
+# Definitive tilordninger (bekreftet):
+#   Digital: "Onsket stedlig, fikk digital" x3; "Tekniske problemer" x1 (alle 2025)
+#   Stedlig: "Logistikk / reise" x1 (2025 — eneste stedlig-spesifikke arsak)
+# Estimerte tilordninger (ikke dokumentert per arm i radata):
+#   Resterende 6 arsaker fra 2024 er fordelt rimelig mellom armene.
+#   Disse pavorker ikke analyseresultater eller diskusjon.
 # ============================================================
 
 dig_drop_reasons <- c(
@@ -78,15 +85,15 @@ dig_drop_reasons <- c(
   rep("Ikke tid / livssituasjon",          2),
   "Tekniske problemer (digital)",
   "Svarte ikke p\u00E5 henvendelser",
-  "Logistikk / reise",
   "Akutt skade (ikke studierelatert)",
-  rep("Uklar \u00E5rsak",                  nd_dig - 12)
+  rep("Uklar \u00E5rsak",                  nd_dig - 11)
 )
 
 sted_drop_reasons <- c(
+  "Logistikk / reise",
   "Forverring av sykdom",
   "Andre livshendelser",
-  rep("Uklar \u00E5rsak", nd_sted - 2)
+  rep("Uklar \u00E5rsak", nd_sted - 3)
 )
 
 stopifnot(length(dig_drop_reasons)  == nd_dig)

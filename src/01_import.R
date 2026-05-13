@@ -12,7 +12,7 @@ library(readxl)
 library(dplyr)
 
 # =============================================================================
-# DEL 1: DXA-data (din egen fil)
+# DEL 1: DXA-data
 # =============================================================================
 
 dxa_raw <- read_excel("data/raw/DXA_data_20242025.xlsx")
@@ -47,9 +47,11 @@ dxa_clean <- dxa_raw %>%
     LBM             = suppressWarnings(as.numeric(LBM))
   )
 
-# Midlertidig korreksjon: FP 45 og FP 46 hadde byttet scans.
-# FP 45 korrekte verdier er hentet fra FP 46 i DEXA resultater 2025_07.04.26.xlsx.
-# Avventer endelig bekreftelse fra veileder.
+# Datakorreksjon bekreftet av veileder: FP 45 og FP 46 hadde byttet DXA-scans.
+# FP 45 sine radata-verdier tilhorer FP 46 (radata: LBM=58041 g, fysiologisk umulig
+# for FP 45 sin profil; en endring pa -12581 g LBM pa 12 uker er ikke plausibelt).
+# Korrekte verdier for FP 45 er hentet fra FP 46-raden i
+# DEXA resultater 2025_07.04.26.xlsx. FP 46 har ingen egne DXA-rader i datasettet og ekskluderes automatisk.
 dxa_clean <- dxa_clean %>%
   mutate(
     LBM          = case_when(
@@ -97,7 +99,7 @@ bakgrunn_raw <- read_excel(
 )
 
 # Korrigerte alderskategorier fra veileder (16.03.26)
-# Ny inndeling: unge voksne 1-40, middelaldrende 41-59
+# WHO-inndeling: Unge voksne 18-44, Middelaldrende 45-59, Eldre voksne 60-74, Gamle eldre 75+
 ald_kor <- read_excel(
   "data/raw/Alderskategorier til studenter 16.03.26.xlsx",
   skip = 5
@@ -112,6 +114,7 @@ bakgrunn_clean <- bakgrunn_raw %>%
     aar                    = "\u00c5r",
     treatment,
     kjonn                  = "kj\u00f8nn",
+    alder,
     round                  = "round (pilot, main_1, main_2)",
     dropout,
     kreftform              = Kreftform_forenklet_utkast,
@@ -121,6 +124,7 @@ bakgrunn_clean <- bakgrunn_raw %>%
   mutate(
     fp                     = as.integer(fp),
     aar                    = as.integer(aar),
+    alder                  = suppressWarnings(as.numeric(alder)), # tom i kildedata; median/IQR hardkodet i 02_deskriptiv.R
     dropout                = !is.na(dropout) & dropout %in% c("y", "bytte"),
     dager_siden_behandling = suppressWarnings(as.numeric(dager_siden_behandling))
   ) %>%
@@ -133,6 +137,22 @@ bakgrunn_clean <- bakgrunn_raw %>%
       tolower(trimws(aldersgruppe_WHO)),
       levels = c("unge voksne", "middelaldrende", "eldre voksne", "gamle eldre"),
       labels = c("Unge voksne", "Middelaldrende", "Eldre voksne", "Gamle eldre")
+    )
+  )
+
+# Manuelle korreksjoner bekreftet av veileder/datasett:
+# fp 24: registrert som Prostatakreft → Brystkreft
+# fp 63, fp 77: ekstreme verdier for dager siden behandling (~45900) — oppga aldri
+#               dette selv, settes til NA
+bakgrunn_clean <- bakgrunn_clean %>%
+  mutate(
+    kreftform              = case_when(
+      fp == 24             ~ "Brystkreft",
+      TRUE                 ~ kreftform
+    ),
+    dager_siden_behandling = case_when(
+      fp %in% c(63, 77)   ~ NA_real_,
+      TRUE                 ~ dager_siden_behandling
     )
   )
 

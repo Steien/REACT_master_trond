@@ -73,13 +73,14 @@ p_boks_fat <- ggplot(dxa_wide, aes(x = treatment, y = endring_fat, fill = treatm
 # =============================================================================
 # Ekvivalensplot: 90 % KI mot ekvivalensgrenser
 # =============================================================================
+# Verdier fra ANCOVA + TOST i 04_analyse.R (hypotheses(), conf_level = 0.90)
 ekv_data <- data.frame(
   utfall   = c("Mager masse (LBM)", "Fettprosent"),
-  estimat  = c(537, -0.064),
-  ki_lav   = c(-26.7, -0.841),
-  ki_hoy   = c(1100, 0.712),
-  eq_lav   = c(-380, -0.35),
-  eq_hoy   = c(380, 0.35),
+  estimat  = c(537, -0.064),    # ANCOVA-estimat: stedlig minus digital (digital er referanse)
+  ki_lav   = c(-26.7, -0.841), # 90 % KI nedre grense
+  ki_hoy   = c(1100, 0.712),   # 90 % KI ovre grense
+  eq_lav   = c(-380, -0.35),   # ekvivalensgrense nedre (Brown et al. 2019)
+  eq_hoy   = c(380, 0.35),     # ekvivalensgrense ovre (Brown et al. 2019)
   enhet    = c("gram", "prosentpoeng")
 )
 

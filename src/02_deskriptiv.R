@@ -1,6 +1,6 @@
 # =============================================================================
 # 02_deskriptiv.R
-# Deskriptiv statistikk og Tabell 1 -- baseline-karakteristikker per gruppe
+# Deskriptiv statistikk og Tabell 4 -- baseline-karakteristikker per gruppe
 # Output: output/tables/tabell4_baseline.csv
 #         output/tables/tabell4_baseline.docx
 # =============================================================================
@@ -10,6 +10,8 @@ library(tidyr)
 library(readxl)
 library(flextable)
 library(officer)
+
+set.seed(42)  # reproduserbart Monte Carlo-estimat i p_fisher_cat() (simulate.p.value = TRUE)
 
 # =============================================================================
 # Les inn data
@@ -43,6 +45,12 @@ mean_sd <- function(x) {
   sprintf("%.1f (%.1f)", mean(x), sd(x))
 }
 
+med_iqr <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA_character_)
+  sprintf("%.0f (%.0f–%.0f)", median(x), quantile(x, 0.25), quantile(x, 0.75))
+}
+
 # For gram-verdier: ingen desimaler (DXA-presisjon tilsier ikke mer)
 mean_sd_g <- function(x) {
   x <- x[!is.na(x)]
@@ -66,7 +74,7 @@ lag_rad <- function(variabelnavn, digital_verdi, stedlig_verdi, total_verdi, p_v
   )
 }
 
-# Formater p-verdi: < 0.001 eller 2 desimaler
+# Formater p-verdi: < 0.001 eller 3 desimaler
 fmt_p <- function(p) {
   if (is.na(p)) return("")
   if (p < 0.001) return("< 0.001")
@@ -100,21 +108,20 @@ p_fisher_cat <- function(variabel, gruppe) {
 
 
 # =============================================================================
-# Bygg Tabell 1
+# Bygg Tabell 4
 # Radrekkefolge:
 #  1: n
 #  2: Kvinner, n (%)
 #  3: Aldersgruppe (WHO), n (%)         [bold, tom]
 #  4-7:   Unge voksne ... Gamle eldre
-#  8: Kreftform, n (%)                  [bold, tom]
-#  9-17:  Blodkreft ... Prostata
-# 18: Behandlingstype, n (%)1           [bold, tom]
-# 19-25:  Cellegift ... Annet
-# 26: Dager siden siste behandling
-# 27: Antropometri (pre), gj.snitt (SD) [bold, tom]
-# 28-31:  Kroppsvekt ... Midjeomkrets
-# 32: DXA-malinger (pre), gj.snitt (SD) [bold, tom]
-# 33-35:  LBM ... Fettprosent
+#  8: Alder, ar — median (IQR)
+#  9: Kreftform, n (%)                  [bold, tom]
+# 10-18:  Blodkreft ... Prostata
+# 19: Behandlingstype, n (%)1           [bold, tom]
+# 20-26:  Cellegift ... Annet
+# 27: Dager siden siste behandling
+# 28: Antropometri (pre), gj.snitt (SD) [bold, tom]
+# 29-32:  Kroppsvekt ... Midjeomkrets
 # =============================================================================
 
 tabell <- list()
@@ -157,6 +164,13 @@ for (grp in levels(bakgrunn_rct$aldersgruppe_WHO)) {
   tabell[[paste0("ald_", grp)]] <- lag_rad(
     ald_labels[grp], n_pct(d, n_dig), n_pct(s, n_ste), n_pct(a, n_tot))
 }
+
+# --- Alder (kontinuerlig) ---
+# Per-gruppe IQR ikke tilgjengelig; presenteres som median uten IQR inntil data foreligger.
+# Medianverdier oppgitt av veileder: digital=56, stedlig=65, totalt=63.
+tabell[["alder"]] <- lag_rad(
+  "Alder, år — median",
+  "56", "65", "63", "")
 
 # --- Kreftform ---
 tabell[["kf_header"]] <- lag_rad("Kreftform, n (%)", "", "", "",
@@ -214,10 +228,11 @@ dag_dig <- bakgrunn_rct %>% filter(treatment == "digital") %>%
   pull(dager_siden_behandling)
 dag_ste <- bakgrunn_rct %>% filter(treatment == "stedlig") %>%
   pull(dager_siden_behandling)
+n_dager <- sum(!is.na(bakgrunn_rct$dager_siden_behandling))
 tabell[["dager"]] <- lag_rad(
-  "Dager siden siste behandling, gj.snitt (SD)",
-  mean_sd(dag_dig), mean_sd(dag_ste),
-  mean_sd(bakgrunn_rct$dager_siden_behandling),
+  "Dager siden siste behandling, median (25.–75. persentil)³",
+  med_iqr(dag_dig), med_iqr(dag_ste),
+  med_iqr(bakgrunn_rct$dager_siden_behandling),
   p_wilcox(bakgrunn_rct$dager_siden_behandling, bakgrunn_rct$treatment))
 
 # --- Antropometri (pre) ---
@@ -270,9 +285,9 @@ bold_rader <- which(tabell1$Variabel %in% c(
 
 linje_etter <- c(
   which(tabell1$Variabel == "Kvinner, n (%)"),
-  which(tabell1$Variabel == paste0("  Gamle eldre (75+ \u00e5r)")),
-  which(grepl("Prostata", tabell1$Variabel)),
-  which(tabell1$Variabel == "Dager siden siste behandling, gj.snitt (SD)"),
+  which(tabell1$Variabel == "Alder, \u00e5r \u2014 median"),
+  which(tabell1$Variabel == "Behandlingstype, n (%)¹") - 1,
+  which(tabell1$Variabel == "Dager siden siste behandling, median (25.–75. persentil)³"),
   which(grepl("Midjeomkrets", tabell1$Variabel))
 )
 
@@ -282,7 +297,9 @@ note_text <- paste0(
   "SD = standardavvik. ",
   "P-verdier for kategoriske variabler er beregnet med Fisher\u2019s eksakte test; ",
   "for kontinuerlige variabler er Wilcoxon rank-sum test benyttet. ",
-  "\u00b2 Antropometri ved pre-test mangler for \u00e9n deltaker; n = 69 for disse radene."
+  "\u00b2 Antropometri ved pre-test mangler for \u00e9n deltaker; n = 69 for disse radene. ",
+  paste0("\u00b3 Dager siden siste behandling mangler for ", n_tot - n_dager,
+         " deltakere grunnet manglende data; n = ", n_dager, " for denne raden.")
 )
 
 ft <- flextable(tabell1) %>%
@@ -306,9 +323,9 @@ ft <- flextable(tabell1) %>%
   width(j = "p", width = 0.7) %>%
   align(j = c("Digital", "Stedlig", "Totalt", "p"), align = "center", part = "all") %>%
   align(j = "Variabel", align = "left", part = "all") %>%
-  padding(padding.top = 2, padding.bottom = 2, part = "body") %>%
-  padding(i = nrow(tabell1), padding.bottom = 10, part = "body") %>%
-  padding(padding.top = 4, padding.bottom = 4, part = "header") %>%
+  padding(padding.top = 1, padding.bottom = 1, part = "body") %>%
+  padding(i = nrow(tabell1), padding.bottom = 6, part = "body") %>%
+  padding(padding.top = 3, padding.bottom = 3, part = "header") %>%
   fontsize(size = 10, part = "all") %>%
   font(fontname = "Times New Roman", part = "all") %>%
   bg(bg = "white", part = "all") %>%
@@ -332,7 +349,7 @@ cat("Lagret: output/tables/tabell4_baseline.docx\n")
 
 
 # =============================================================================
-# Tabell 2: Etterlevelse
+# Tabell 5: Etterlevelse
 # =============================================================================
 
 opm_raw <- read_excel(

@@ -72,3 +72,30 @@ tost_fat <- hypotheses(
 )
 cat("\nTOST fettprosent (ekvivalensgrense ±", eq_fat, "%):\n")
 print(tost_fat)
+
+# =============================================================================
+# Tilleggsanalyse: Frafallsforskjell mellom grupper
+# Fisher's eksakte test — dropout (ja/nei) per behandlingsgruppe
+# Alle randomiserte (n=70) inkluderes; korrekte dropout-verdier fra bakgrunn_clean
+# =============================================================================
+cat("\n=== TILLEGGSANALYSE: Frafallsforskjell mellom grupper ===\n")
+
+bakgrunn_rct <- bakgrunn %>% filter(!is.na(treatment))
+
+# Anvend samme manuelle korreksjoner som i 03_flytskjema.R
+bakgrunn_rct <- bakgrunn_rct %>%
+  mutate(dropout_korr = case_when(
+    fp == 80 ~ FALSE,  # verifisert: har begge DXA-scanner
+    fp == 77 ~ TRUE,   # verifisert: 0 DXA-rader
+    fp == 45 ~ FALSE,  # korrigerte DXA-verdier gyldige
+    fp == 46 ~ TRUE,   # mangler gyldig DXA
+    TRUE     ~ as.logical(dropout)
+  ))
+
+dropout_tbl <- table(bakgrunn_rct$treatment, bakgrunn_rct$dropout_korr)
+colnames(dropout_tbl) <- c("Fullfort", "Dropout")
+cat("\nKrysstabell (treatment x dropout):\n")
+print(dropout_tbl)
+
+cat("\nFisher's eksakte test:\n")
+print(fisher.test(dropout_tbl))
