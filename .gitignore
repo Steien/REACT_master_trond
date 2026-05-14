@@ -3,6 +3,9 @@
 # Genererte datafiler — reproduseres av 01_import.R
 data/processed/
 
+# Eldre DXA-fil (kun 2024-data, erstattet av DXA_data_20242025.xlsx)
+data/raw/DXA_data.xlsx
+
 # Word midlertidige låsfiler
 ~$*.docx
 

@@ -1,10 +1,10 @@
 # REACT_MASTER — Reproduserbar analysepipeline
 
-**Masteroppgave i treningsfysiologi**
-Norges idrettshøgskole / [institusjon]
+**Masteroppgave — IDR4001**
+Universitetet i Innlandet — Fakultet for helse- og sosialvitenskap
 
 **Tittel:**
-Effekt av 12 ukers digital hjemmebasert styrketrening på muskelmasse og fettmasse hos kreftpasienter etter behandling sammenlignet med veiledet styrketrening med oppmøte.
+Effekt av 12 ukers digital hjemmebasert styrketrening på muskelmasse og fettmasse hos ferdigbehandlede kreftpasienter sammenlignet med stedlig styrketrening i gruppe.
 
 **Forfatter:** Trond Steien
 **År:** 2026
@@ -134,11 +134,11 @@ Basert på Brown et al. (2019) — 50 % av nedre konfidensintervallgrense:
 |---|---|---|
 | R | 4.4.2 | R Core Team (2024) |
 | RStudio | 2026.01.0+392 | Posit team (2026) |
-| marginaleffects | — | Arel-Bundock et al. (2024) |
+| marginaleffects | 0.32.0 | Arel-Bundock et al. (2024) |
 | dplyr | 1.1.4 | Wickham et al. (2023) |
 | tidyr | 1.3.2 | Wickham et al. (2025) |
 | readxl | 1.4.5 | Wickham & Bryan (2025) |
-| ggplot2 | — | Wickham (2016) |
+| ggplot2 | 4.0.1 | Wickham (2016) |
 | flextable | 0.9.11 | Gohel & Skintzos (2026) |
 | officer | 0.7.3 | Gohel et al. (2026) |
 | consort | 1.2.2 | Dayim (2024) |
@@ -149,5 +149,5 @@ Eksakte pakkeversjonene er låst i `renv.lock`.
 
 ## AI-assistanse
 
-Kodeskriving ble støttet av Claude Sonnet 4.6 (Anthropic, 2025).
+Kodeskriving ble støttet av Claude Sonnet 4.6 (Anthropic, 2026).
 Samtalelogg er tilgjengelig fra forfatteren på forespørsel.

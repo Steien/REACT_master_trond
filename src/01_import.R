@@ -1,6 +1,6 @@
 # =============================================================================
 # 01_import.R
-# Leser inn og rydder radata fra DXA_data.xlsx og REACT_data_til_studenter.xlsx
+# Leser inn og rydder radata fra DXA_data_20242025.xlsx og REACT_data_til_studenter.xlsx
 # Output: data/processed/dxa_clean.rds
 #         data/processed/bakgrunn_clean.rds
 #         data/processed/antropometri_clean.rds
