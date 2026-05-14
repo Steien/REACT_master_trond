@@ -47,7 +47,7 @@ p_boks_lbm <- ggplot(dxa_wide, aes(x = treatment, y = endring_lbm, fill = treatm
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey40") +
   scale_fill_manual(values = farger) +
   labs(
-    title    = "Figur 3. Endring i mager masse (LBM)",
+    title    = "Figur 3. Endring i LBM",
     subtitle = "Pre til post per gruppe",
     x        = NULL,
     y        = "Endring i LBM (g)"
@@ -73,9 +73,11 @@ p_boks_fat <- ggplot(dxa_wide, aes(x = treatment, y = endring_fat, fill = treatm
 # =============================================================================
 # Ekvivalensplot: 90 % KI mot ekvivalensgrenser
 # =============================================================================
-# Verdier fra ANCOVA + TOST i 04_analyse.R (hypotheses(), conf_level = 0.90)
+# Verdier hardkodet fra output av 04_analyse.R (hypotheses(), conf_level = 0.90).
+# Hardkodet fordi ggplot krever en data frame — modellobjektene fra 04_analyse.R
+# lastes ikke inn her. Oppdater ved endringer i analysen.
 ekv_data <- data.frame(
-  utfall   = c("Mager masse (LBM)", "Fettprosent"),
+  utfall   = c("LBM", "Fettprosent"),
   estimat  = c(537, -0.064),    # ANCOVA-estimat: stedlig minus digital (digital er referanse)
   ki_lav   = c(-26.7, -0.841), # 90 % KI nedre grense
   ki_hoy   = c(1100, 0.712),   # 90 % KI ovre grense
@@ -94,7 +96,7 @@ p_ekv_lbm <- ggplot(ekv_data[1, ], aes(y = utfall)) +
   geom_vline(aes(xintercept = eq_lav), linetype = "dotted", color = "#28a745") +
   geom_vline(aes(xintercept = eq_hoy), linetype = "dotted", color = "#28a745") +
   labs(
-    title    = "Figur 2. Ekvivalensplot — Mager masse (LBM)",
+    title    = "Figur 2. Ekvivalensplot — LBM",
     subtitle = "90 % KI mot ekvivalensgrenser (±380 g, grønt område)",
     x        = "Estimert gruppeforskjell (g)",
     y        = NULL

@@ -166,11 +166,11 @@ for (grp in levels(bakgrunn_rct$aldersgruppe_WHO)) {
 }
 
 # --- Alder (kontinuerlig) ---
-# Per-gruppe IQR ikke tilgjengelig; presenteres som median uten IQR inntil data foreligger.
-# Medianverdier oppgitt av veileder: digital=56, stedlig=65, totalt=63.
+# Verdier hardkodet — oppgitt av stipendiat tilknyttet REACT-prosjektet, ikke beregnet fra rådata.
+# Digital: median 56, IQR 52–68 | Stedlig: median 65, IQR 58–72 | Totalt: median 63, IQR 53–71
 tabell[["alder"]] <- lag_rad(
-  "Alder, år — median",
-  "56", "65", "63", "")
+  "Alder, år — median (IQR)⁴",
+  "56 (52–68)", "65 (58–72)", "63 (53–71)", "")
 
 # --- Kreftform ---
 tabell[["kf_header"]] <- lag_rad("Kreftform, n (%)", "", "", "",
@@ -230,7 +230,7 @@ dag_ste <- bakgrunn_rct %>% filter(treatment == "stedlig") %>%
   pull(dager_siden_behandling)
 n_dager <- sum(!is.na(bakgrunn_rct$dager_siden_behandling))
 tabell[["dager"]] <- lag_rad(
-  "Dager siden siste behandling, median (25.–75. persentil)³",
+  "Dager siden siste behandling, median (IQR)³",
   med_iqr(dag_dig), med_iqr(dag_ste),
   med_iqr(bakgrunn_rct$dager_siden_behandling),
   p_wilcox(bakgrunn_rct$dager_siden_behandling, bakgrunn_rct$treatment))
@@ -285,9 +285,9 @@ bold_rader <- which(tabell1$Variabel %in% c(
 
 linje_etter <- c(
   which(tabell1$Variabel == "Kvinner, n (%)"),
-  which(tabell1$Variabel == "Alder, \u00e5r \u2014 median"),
+  which(tabell1$Variabel == "Alder, \u00e5r \u2014 median (IQR)\u2074"),
   which(tabell1$Variabel == "Behandlingstype, n (%)¹") - 1,
-  which(tabell1$Variabel == "Dager siden siste behandling, median (25.–75. persentil)³"),
+  which(tabell1$Variabel == "Dager siden siste behandling, median (IQR)³"),
   which(grepl("Midjeomkrets", tabell1$Variabel))
 )
 
@@ -299,7 +299,8 @@ note_text <- paste0(
   "for kontinuerlige variabler er Wilcoxon rank-sum test benyttet. ",
   "\u00b2 Antropometri ved pre-test mangler for \u00e9n deltaker; n = 69 for disse radene. ",
   paste0("\u00b3 Dager siden siste behandling mangler for ", n_tot - n_dager,
-         " deltakere grunnet manglende data; n = ", n_dager, " for denne raden.")
+         " deltakere grunnet manglende data; n = ", n_dager, " for denne raden."),
+  " \u2074 Alder (median og IQR) er oppgitt av stipendiat tilknyttet REACT-prosjektet og er ikke beregnet direkte fra r\u00e5data i dette skriptet."
 )
 
 ft <- flextable(tabell1) %>%
@@ -420,7 +421,7 @@ etterlevelse_tabell <- bind_rows(
     p_etterlevelse
   ),
   lag_rad(
-    "Median (25.\u201375. persentil), %",
+    "Median (IQR), %",
     med_iqr_pct(opm_d), med_iqr_pct(opm_s), med_iqr_pct(opm_a),
     ""
   )
